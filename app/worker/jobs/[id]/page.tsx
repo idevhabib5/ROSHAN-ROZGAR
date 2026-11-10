@@ -7,6 +7,26 @@ import { useSession } from '@/components/SessionProvider'
 import { useRealtime } from '@/hooks/useRealtime'
 import { api } from '@/lib/client'
 import { approxAreaLabel } from '@/lib/geo'
+import { friendlyError } from '@/lib/ui/errors'
+
+const OFFER_STATE_LABEL: Record<string, string> = {
+  active: 'Pending customer reply',
+  proposed: 'Pending customer reply',
+  accepted: 'Accepted',
+  withdrawn: 'Withdrawn',
+  not_selected: 'Not selected',
+  expired: 'Expired',
+}
+
+const REQUEST_STATUS_LABEL: Record<string, string> = {
+  searching: 'Open for offers',
+  offers_received: 'Receiving offers',
+  open: 'Open for offers',
+  quoted: 'Open for offers',
+  assigned: 'Worker selected',
+  cancelled: 'Cancelled',
+  expired: 'Expired',
+}
 
 type RequestDetail = {
   id: string
@@ -53,7 +73,7 @@ export default function WorkerJobPage() {
   }
 
   useEffect(() => {
-    load().catch((e) => setError(e.message))
+    load().catch((e) => setError(friendlyError(e, 'Could not load this job.')))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, session.workerId])
 
@@ -73,8 +93,14 @@ export default function WorkerJobPage() {
   })
 
   const myQuote = req?.quotes.find((q) => q.workerId === session.workerId)
+  const canSendOffer =
+    !myQuote &&
+    ['searching', 'offers_received', 'open', 'quoted'].includes(req?.status || '') &&
+    amount >= 100 &&
+    eta >= 5
 
   const sendOffer = async () => {
+    if (!canSendOffer || loading) return
     setLoading(true)
     setError(null)
     try {
@@ -90,15 +116,16 @@ export default function WorkerJobPage() {
       await load()
       setStatusNote('Offer submitted. Waiting for the customer.')
     } catch (e) {
-      setError((e as Error).message)
+      setError(friendlyError(e, 'Could not send your offer. Check your connection and try again.'))
     } finally {
       setLoading(false)
     }
   }
 
   const withdraw = async () => {
-    if (!myQuote) return
+    if (!myQuote || loading) return
     setLoading(true)
+    setError(null)
     try {
       await api(`/api/offers/${myQuote.id}`, {
         method: 'PATCH',
@@ -107,7 +134,7 @@ export default function WorkerJobPage() {
       await load()
       setStatusNote('Offer withdrawn.')
     } catch (e) {
-      setError((e as Error).message)
+      setError(friendlyError(e, 'Could not withdraw the offer. Try again.'))
     } finally {
       setLoading(false)
     }
@@ -143,9 +170,11 @@ export default function WorkerJobPage() {
       </div>
 
       <div className="content-card stack">
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
           <strong>{req.trade}</strong>
-          <span className="badge badge-warning">{req.status}</span>
+          <span className="badge badge-warning">
+            {REQUEST_STATUS_LABEL[req.status] || req.status}
+          </span>
         </div>
         <p style={{ margin: 0, fontSize: 14 }}>{req.issueDescription}</p>
 
@@ -186,14 +215,19 @@ export default function WorkerJobPage() {
         </div>
       </div>
 
-      {statusNote && <p className="status-note" style={{ marginTop: 14 }}>{statusNote}</p>}
+      {statusNote && (
+        <p className="status-note" style={{ marginTop: 14 }} role="status">
+          {statusNote}
+        </p>
+      )}
 
       {!myQuote && ['searching', 'offers_received', 'open', 'quoted'].includes(req.status) && (
         <div className="content-card stack" style={{ marginTop: 14 }}>
           <h3 style={{ margin: 0, fontSize: 16 }}>Send offer</h3>
+          <p className="field-hint">Enter your price in PKR and arrival time. You can withdraw later.</p>
           <div>
             <label className="form-label" htmlFor="offer-amount">
-              Proposed price (PKR)
+              Your price (PKR) <span className="req">required</span>
             </label>
             <input
               id="offer-amount"
@@ -201,12 +235,14 @@ export default function WorkerJobPage() {
               className="input"
               value={amount}
               min={100}
+              inputMode="numeric"
               onChange={(e) => setAmount(Number(e.target.value))}
+              required
             />
           </div>
           <div>
             <label className="form-label" htmlFor="offer-eta">
-              Estimated arrival (minutes)
+              Arrival time (minutes) <span className="req">required</span>
             </label>
             <input
               id="offer-eta"
@@ -214,12 +250,14 @@ export default function WorkerJobPage() {
               className="input"
               value={eta}
               min={5}
+              inputMode="numeric"
               onChange={(e) => setEta(Number(e.target.value))}
+              required
             />
           </div>
           <div>
             <label className="form-label" htmlFor="offer-message">
-              Message (optional)
+              Message <span className="opt">optional</span>
             </label>
             <textarea
               id="offer-message"
@@ -231,8 +269,9 @@ export default function WorkerJobPage() {
           <button
             type="button"
             className="btn btn-primary btn-block"
-            disabled={loading}
+            disabled={!canSendOffer || loading}
             onClick={sendOffer}
+            title={!canSendOffer ? 'Enter a price of at least Rs. 100 and ETA of 5+ minutes' : undefined}
           >
             {loading ? 'Sending…' : 'Send offer'}
           </button>
@@ -251,7 +290,8 @@ export default function WorkerJobPage() {
           <strong>Your offer</strong>
           <div>
             Rs. {myQuote.amountPkr}
-            {myQuote.etaMinutes != null ? ` · ${myQuote.etaMinutes} min` : ''} · {myQuote.state}
+            {myQuote.etaMinutes != null ? ` · ${myQuote.etaMinutes} min` : ''} ·{' '}
+            {OFFER_STATE_LABEL[myQuote.state] || myQuote.state}
           </div>
           {['active', 'proposed'].includes(myQuote.state) && (
             <button type="button" className="btn btn-outline" disabled={loading} onClick={withdraw}>
@@ -275,7 +315,11 @@ export default function WorkerJobPage() {
         </div>
       )}
 
-      {error && <p className="status-note error" style={{ marginTop: 10 }}>{error}</p>}
+      {error && (
+        <p className="status-note error" style={{ marginTop: 10 }} role="alert">
+          {error}
+        </p>
+      )}
     </div>
   )
 }

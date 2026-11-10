@@ -3,9 +3,11 @@
 import { useCallback, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Loader2 } from 'lucide-react'
+import { CustomerFlowSteps } from '@/components/FlowSteps'
 import { useSession } from '@/components/SessionProvider'
 import { usePolling, useRealtime } from '@/hooks/useRealtime'
 import { api } from '@/lib/client'
+import { friendlyError } from '@/lib/ui/errors'
 
 type DispatchStatus = {
   requestId: string
@@ -29,10 +31,20 @@ const PHASE_LABEL: Record<string, string> = {
   workers_notified: 'Workers notified. Waiting for offers.',
   offers_received: 'Offers received',
   expanding: 'Expanding search area',
-  no_workers: 'No workers nearby',
+  no_workers: 'No workers nearby right now',
   cancelled: 'Request cancelled',
   expired: 'Request expired',
   assigned: 'Worker assigned',
+}
+
+const PHASE_HINT: Record<string, string> = {
+  finding: 'We are looking for available workers near your area.',
+  workers_notified: 'Nearby workers were notified. Offers will appear here.',
+  expanding: 'Expanding the search radius to find more workers.',
+  offers_received: 'Compare offers and choose a worker.',
+  no_workers: 'Try again, change the area, or post later.',
+  expired: 'This search timed out. You can retry.',
+  cancelled: 'You cancelled this request.',
 }
 
 export default function DispatchWaitingPage() {
@@ -59,14 +71,15 @@ export default function DispatchWaitingPage() {
       event === 'dispatch:no_workers' ||
       event === 'dispatch:started'
     ) {
-      load().catch((e) => setError(e.message))
+      load().catch((e) => setError(friendlyError(e)))
     }
   })
 
-  usePolling(() => load().catch((e) => setError(e.message)), 2500, true)
+  usePolling(() => load().catch((e) => setError(friendlyError(e))), 2500, true)
 
   const cancel = async () => {
     setLoading(true)
+    setError(null)
     try {
       await api(`/api/dispatch/sessions/${requestId}`, {
         method: 'PATCH',
@@ -74,7 +87,7 @@ export default function DispatchWaitingPage() {
       })
       router.push('/customer/home')
     } catch (e) {
-      setError((e as Error).message)
+      setError(friendlyError(e, 'Could not cancel the request. Try again.'))
     } finally {
       setLoading(false)
     }
@@ -82,6 +95,7 @@ export default function DispatchWaitingPage() {
 
   const retry = async () => {
     setLoading(true)
+    setError(null)
     try {
       await api(`/api/dispatch/sessions/${requestId}`, {
         method: 'PATCH',
@@ -89,13 +103,15 @@ export default function DispatchWaitingPage() {
       })
       await load()
     } catch (e) {
-      setError((e as Error).message)
+      setError(friendlyError(e, 'Could not restart the search. Try again.'))
     } finally {
       setLoading(false)
     }
   }
 
-  const searching = !status || ['finding', 'workers_notified', 'expanding'].includes(status.phase)
+  const phase = status?.phase || 'finding'
+  const searching = !status || ['finding', 'workers_notified', 'expanding'].includes(phase)
+  const canCancel = !['assigned', 'cancelled'].includes(phase)
 
   return (
     <div className="screen narrow">
@@ -104,21 +120,30 @@ export default function DispatchWaitingPage() {
           type="button"
           className="back-btn"
           onClick={() => router.push('/customer/home')}
-          aria-label="Back"
+          aria-label="Back to request form"
         >
           <ArrowLeft size={18} />
         </button>
         <h2 className="page-title">Finding nearby workers</h2>
       </div>
 
+      <CustomerFlowSteps current="finding" />
+
       <div className="content-card stack" style={{ textAlign: 'center' }}>
-        <div className={`search-status${searching ? ' pulse' : ''}`} aria-hidden>
+        <div
+          className={`search-status${searching ? ' pulse' : ''}`}
+          aria-hidden
+        >
           <Loader2 size={24} className={searching ? 'spin' : undefined} />
         </div>
 
-        <strong style={{ fontSize: 17 }}>
-          {PHASE_LABEL[status?.phase || 'finding'] || 'Searching'}
-        </strong>
+        <div aria-live="polite" aria-atomic="true">
+          <strong style={{ fontSize: 17 }}>{PHASE_LABEL[phase] || 'Searching'}</strong>
+          <p className="muted" style={{ margin: '6px 0 0' }}>
+            {PHASE_HINT[phase] || 'Please wait while we update your request.'}
+          </p>
+        </div>
+
         <p className="muted" style={{ margin: 0 }}>
           {[status?.request.title || status?.request.trade, status?.request.location]
             .filter(Boolean)
@@ -129,25 +154,30 @@ export default function DispatchWaitingPage() {
         <div className="stat-grid" style={{ marginTop: 8 }}>
           <div className="stat-card">
             <div className="val">{status?.currentRadiusKm ?? '–'} km</div>
-            <div className="lbl">Radius</div>
+            <div className="lbl">Search radius</div>
           </div>
           <div className="stat-card">
             <div className="val">{status?.notifiedCount ?? 0}</div>
-            <div className="lbl">Notified</div>
+            <div className="lbl">Workers notified</div>
           </div>
           <div className="stat-card">
             <div className="val">{status?.offerCount ?? 0}</div>
-            <div className="lbl">Offers</div>
+            <div className="lbl">Offers received</div>
           </div>
         </div>
 
-        {status?.phase === 'no_workers' && (
+        {phase === 'no_workers' && (
           <div className="empty-state" style={{ padding: 16 }}>
-            No available workers in this area. Retry or try a different time.
+            No available workers nearby right now. Retry the search or change your area and post
+            again.
           </div>
         )}
 
-        {error && <p className="status-note error">{error}</p>}
+        {error && (
+          <p className="status-note error" role="alert">
+            {error}
+          </p>
+        )}
 
         <div className="sticky-actions" style={{ marginTop: 8 }}>
           {(status?.offerCount ?? 0) > 0 && (
@@ -156,17 +186,19 @@ export default function DispatchWaitingPage() {
               className="btn btn-primary"
               onClick={() => router.push(`/customer/offers/${requestId}`)}
             >
-              View offers
+              View offers ({status?.offerCount})
             </button>
           )}
-          {(status?.phase === 'no_workers' || status?.phase === 'expired') && (
+          {(phase === 'no_workers' || phase === 'expired') && (
             <button type="button" className="btn btn-secondary" disabled={loading} onClick={retry}>
-              Retry search
+              {loading ? 'Retrying…' : 'Retry search'}
             </button>
           )}
-          <button type="button" className="btn btn-outline" disabled={loading} onClick={cancel}>
-            Cancel request
-          </button>
+          {canCancel && (
+            <button type="button" className="btn btn-outline" disabled={loading} onClick={cancel}>
+              {loading ? 'Cancelling…' : 'Cancel request'}
+            </button>
+          )}
         </div>
       </div>
     </div>

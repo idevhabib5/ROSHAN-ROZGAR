@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import { Facebook, Mail } from 'lucide-react'
+import { friendlyError } from '@/lib/ui/errors'
 
 type Mode = 'login' | 'signup'
 
@@ -41,15 +42,15 @@ export function AuthForm({ mode }: { mode: Mode }) {
           res.error === 'EMAIL_EXISTS' || res.error.includes('EMAIL_EXISTS')
             ? 'An account with this email already exists. Log in instead.'
             : mode === 'signup'
-              ? 'Could not create account. Check your details and try again.'
-              : 'Invalid email or password.',
+              ? 'Could not create account. Check your name, email, and password.'
+              : 'Email or password is incorrect.',
         )
         return
       }
       router.push('/')
       router.refresh()
-    } catch {
-      setError('Something went wrong. Try again.')
+    } catch (e) {
+      setError(friendlyError(e, 'Something went wrong. Try again.'))
     } finally {
       setLoading(false)
     }

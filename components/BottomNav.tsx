@@ -2,33 +2,61 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Briefcase, Home, MessageCircle, User } from 'lucide-react'
+import { Briefcase, Home, MessageCircle, UserRound } from 'lucide-react'
+
+type NavItem = {
+  href: string
+  label: string
+  icon: typeof Home
+  match: string
+  exact?: boolean
+}
 
 export function BottomNav({ role }: { role: 'worker' | 'customer' }) {
   const pathname = usePathname()
-  const home = role === 'worker' ? '/worker/home' : '/customer/home'
-  const items = [
-    { href: home, label: 'Home', icon: Home },
-    {
-      href: role === 'worker' ? '/worker/home' : '/customer/workers',
-      label: 'Jobs',
-      icon: Briefcase,
-    },
-    {
-      href: role === 'customer' ? '/customer/chat' : '/worker/home',
-      label: 'Chat',
-      icon: MessageCircle,
-    },
-    { href: '/', label: 'Switch', icon: User },
-  ]
+
+  const items: NavItem[] =
+    role === 'customer'
+      ? [
+          { href: '/customer/home', label: 'Request', icon: Home, match: '/customer/home' },
+          { href: '/customer/workers', label: 'Workers', icon: Briefcase, match: '/customer/workers' },
+          { href: '/customer/chat', label: 'Messages', icon: MessageCircle, match: '/customer/chat' },
+          { href: '/', label: 'Roles', icon: UserRound, match: '/', exact: true },
+        ]
+      : [
+          { href: '/worker/home', label: 'Home', icon: Home, match: '/worker/home', exact: true },
+          {
+            href: '/worker/home#opportunities',
+            label: 'Jobs',
+            icon: Briefcase,
+            match: '/worker/jobs',
+          },
+          {
+            href: '/worker/onboarding',
+            label: 'Profile',
+            icon: UserRound,
+            match: '/worker/onboarding',
+          },
+          { href: '/', label: 'Roles', icon: UserRound, match: '/', exact: true },
+        ]
 
   return (
-    <nav className="bottom-nav" aria-label="Mobile navigation">
-      {items.map(({ href, label, icon: Icon }) => {
-        const active = pathname === href || (href !== '/' && pathname.startsWith(href))
+    <nav
+      className="bottom-nav"
+      aria-label={role === 'customer' ? 'Customer navigation' : 'Worker navigation'}
+    >
+      {items.map(({ href, label, icon: Icon, match, exact }) => {
+        const active = exact
+          ? pathname === match
+          : pathname === match || pathname.startsWith(`${match}/`)
         return (
-          <Link key={label} href={href} className={`nav-item${active ? ' active' : ''}`}>
-            <Icon size={20} strokeWidth={2.2} />
+          <Link
+            key={`${label}-${href}`}
+            href={href}
+            className={`nav-item${active ? ' active' : ''}`}
+            aria-current={active ? 'page' : undefined}
+          >
+            <Icon size={20} strokeWidth={2.2} aria-hidden />
             {label}
           </Link>
         )

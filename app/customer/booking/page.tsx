@@ -3,8 +3,10 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Banknote, Calendar, Check, Clock, MapPin, User, Wrench } from 'lucide-react'
+import { CustomerFlowSteps } from '@/components/FlowSteps'
 import { useSession } from '@/components/SessionProvider'
 import { api } from '@/lib/client'
+import { friendlyError } from '@/lib/ui/errors'
 
 function BookingInner() {
   const router = useRouter()
@@ -103,8 +105,8 @@ function BookingInner() {
       const err = e as Error & { code?: string }
       setError(
         err.code === 'WORKER_ENGAGED'
-          ? 'Worker is already booked.'
-          : err.message,
+          ? 'That worker is already booked. Go back and choose another offer.'
+          : friendlyError(e, 'Could not confirm the booking. Try again.'),
       )
     } finally {
       setLoading(false)
@@ -114,6 +116,7 @@ function BookingInner() {
   if (confirmed) {
     return (
       <div className="screen narrow">
+        <CustomerFlowSteps current="booking" />
         <div className="success-hero">
           <div className="icon-ring">
             <Check size={40} strokeWidth={2.5} />
@@ -163,8 +166,10 @@ function BookingInner() {
         >
           <ArrowLeft size={18} />
         </button>
-        <h2>Confirm booking</h2>
+        <h2 className="page-title">Confirm booking</h2>
       </div>
+
+      <CustomerFlowSteps current="booking" />
 
       <div className="content-card stack">
         <div style={{ textAlign: 'center' }}>

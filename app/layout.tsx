@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter, Noto_Nastaliq_Urdu } from 'next/font/google'
 import { AuthProvider } from '@/components/AuthProvider'
 import { SessionProvider } from '@/components/SessionProvider'
@@ -25,15 +25,28 @@ export const metadata: Metadata = {
   icons: { icon: '/favicon.svg' },
 }
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: 'cover',
+  themeColor: '#006B46',
+}
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${urdu.variable}`}>
       <body className={inter.className}>
+        <a href="#main-content" className="skip-link">
+          Skip to main content
+        </a>
         <AuthProvider>
           <SessionProvider>
             <AppShell>
               <SiteHeader />
-              <main className="app-main">{children}</main>
+              <main id="main-content" className="app-main" tabIndex={-1}>
+                {children}
+              </main>
             </AppShell>
           </SessionProvider>
         </AuthProvider>

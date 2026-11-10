@@ -143,6 +143,10 @@ export default function WorkerHomePage() {
                 textAlign: 'left',
                 cursor: 'pointer',
               }}
+              aria-pressed={Boolean(worker?.onlinePreference)}
+              aria-label={
+                worker?.onlinePreference ? 'Turn availability off' : 'Turn availability on'
+              }
             >
               <div>
                 <strong style={{ fontSize: 16 }}>
@@ -156,7 +160,10 @@ export default function WorkerHomePage() {
                       : 'Job alerts are paused.'}
                 </div>
               </div>
-              <div className={`toggle ${worker?.onlinePreference ? 'on' : ''}`} />
+              <div
+                className={`toggle ${worker?.onlinePreference ? 'on' : ''}`}
+                aria-hidden
+              />
             </button>
 
             <div className="content-card" style={{ fontSize: 13 }}>
@@ -203,8 +210,8 @@ export default function WorkerHomePage() {
             </div>
           </div>
 
-          <div className="stack">
-            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>Job opportunities</h3>
+          <div className="stack" id="opportunities">
+            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>Nearby job opportunities</h3>
             {opps.length === 0 ? (
               <div className="empty-state" style={{ padding: '24px 16px' }}>
                 No open jobs nearby. Stay available with a fresh location.
@@ -218,28 +225,34 @@ export default function WorkerHomePage() {
                   style={{ textAlign: 'left', cursor: 'pointer', borderColor: 'var(--primary)' }}
                   onClick={() => router.push(`/worker/jobs/${o.jobId}`)}
                 >
-                  <strong>{o.jobTitle}</strong>
+                  <strong>{o.jobTitle || o.serviceCategory}</strong>
                   <div className="muted" style={{ marginTop: 4 }}>
                     {o.approximateArea} · ~{o.approximateDistanceKm} km
                     {o.customerBudget != null ? ` · Budget Rs. ${o.customerBudget}` : ''}
+                    {o.preferredTime ? ` · ${o.preferredTime}` : ''}
                   </div>
-                  <p style={{ margin: '8px 0 0', fontSize: 13 }}>{o.shortDescription}</p>
+                  <p className="truncate-2" style={{ margin: '8px 0 0', fontSize: 13 }}>
+                    {o.shortDescription}
+                  </p>
+                  <span className="btn btn-primary btn-sm" style={{ marginTop: 12, pointerEvents: 'none' }}>
+                    View &amp; send offer
+                  </span>
                 </button>
               ))
             )}
 
             <div className="content-card">
-              <h3 style={{ margin: '0 0 12px', fontSize: 17, fontWeight: 800 }}>Current Status</h3>
+              <h3 style={{ margin: '0 0 12px', fontSize: 17, fontWeight: 800 }}>Current status</h3>
               <div className="field-row" style={{ paddingTop: 0 }}>
                 <div className="field-icon">
                   <Briefcase size={18} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <div className="muted" style={{ fontSize: 12 }}>
-                    Active Booking
+                    Active booking
                   </div>
                   <strong>
-                    {activeBooking ? `Status: ${activeBooking.status}` : 'Koi active booking nahi'}
+                    {activeBooking ? `Status: ${activeBooking.status}` : 'No active booking'}
                   </strong>
                 </div>
                 <span className={`badge ${activeBooking ? 'badge-busy' : 'badge-success'}`}>
@@ -252,9 +265,9 @@ export default function WorkerHomePage() {
                 </div>
                 <div>
                   <div className="muted" style={{ fontSize: 12 }}>
-                    Inbox
+                    Open opportunities
                   </div>
-                  <strong>{opps.length} opportunities</strong>
+                  <strong>{opps.length} nearby</strong>
                 </div>
               </div>
             </div>
@@ -266,7 +279,7 @@ export default function WorkerHomePage() {
                   className="btn btn-secondary"
                   onClick={() => router.push(`/worker/bookings/${activeBooking.id}`)}
                 >
-                  Active Booking Dekhein
+                  Open active booking
                 </button>
               )}
               {session.workerId !== DEMO_IDS.workerAli && (
@@ -278,11 +291,15 @@ export default function WorkerHomePage() {
                     setTimeout(() => load(), 50)
                   }}
                 >
-                  Demo: Switch to seeded Ali Raza
+                  Use demo worker (Ali Raza)
                 </button>
               )}
             </div>
-            {error && <p style={{ fontSize: 12, color: 'var(--danger)', margin: 0 }}>{error}</p>}
+            {error && (
+              <p className="status-note error" role="alert">
+                {error}
+              </p>
+            )}
           </div>
         </div>
       </div>

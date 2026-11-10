@@ -4,10 +4,12 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Hammer, Mic, Sparkles, Wind, Wrench, Zap } from 'lucide-react'
 import { BottomNav } from '@/components/BottomNav'
+import { CustomerFlowSteps } from '@/components/FlowSteps'
 import { useSession } from '@/components/SessionProvider'
 import { useVoiceInput } from '@/hooks/useVoiceInput'
 import { api } from '@/lib/client'
 import { AREA_KEYS, AREAS } from '@/lib/geo'
+import { friendlyError } from '@/lib/ui/errors'
 
 const SERVICES = [
   { id: 'Plumber', label: 'Plumber', urdu: 'پلمبر', Icon: Wrench },
@@ -74,16 +76,19 @@ export default function CustomerHomePage() {
       if (result?.trade) setSelected(result.trade)
       if (result?.issueDescription) setTitle(result.issueDescription.slice(0, 80))
     } catch (e) {
-      setApiError((e as Error).message)
+      setApiError(friendlyError(e, 'Could not understand the request. Try again or type details.'))
     } finally {
       setLoading(false)
     }
   }
 
+  const canPost = Boolean(selected && areaKey && budget >= 100 && (title.trim() || transcript.trim()))
+
   const continueFlow = async () => {
+    if (!canPost || loading) return
     const trade = extracted?.trade || selected
     const location = extracted?.location || AREAS[areaKey].label
-    const issue = extracted?.issueDescription || transcript || `${trade} service chahiye`
+    const issue = extracted?.issueDescription || transcript || `${trade} service needed`
     const urgency = extracted?.urgency || 'today'
     const preferredTime = extracted?.preferredTime || 'Today, ASAP'
     setLoading(true)
@@ -112,7 +117,12 @@ export default function CustomerHomePage() {
       patch({ requestId: req.id, role: 'customer', selectedWorkerId: null, quoteId: null })
       router.push(`/customer/dispatch/${req.id}`)
     } catch (e) {
-      setApiError((e as Error).message)
+      setApiError(
+        friendlyError(
+          e,
+          'We could not submit your request. Check your connection and try once more.',
+        ),
+      )
     } finally {
       setLoading(false)
     }
@@ -122,10 +132,11 @@ export default function CustomerHomePage() {
     <>
       <div className="screen with-nav">
         <p className="kicker">Customer</p>
-        <h1 className="section-title">Post a service request</h1>
+        <h1 className="section-title">Post a job request</h1>
         <p className="section-sub">
-          Choose a category, area, and budget. Nearby available workers can send offers.
+          Choose a service, area, and budget. Nearby workers can send offers in PKR.
         </p>
+        <CustomerFlowSteps current="request" />
 
         <div className="panel-grid">
           <div className="content-card stack">
@@ -149,28 +160,34 @@ export default function CustomerHomePage() {
 
             <div>
               <label className="form-label" htmlFor="job-title">
-                Job title
+                Job title <span className="req">required</span>
               </label>
               <input
                 id="job-title"
                 className="input"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
+                required
+                aria-required="true"
               />
             </div>
 
             <div>
               <label className="form-label" htmlFor="job-budget">
-                Budget (PKR)
+                Budget (PKR) <span className="req">required</span>
               </label>
               <input
                 id="job-budget"
                 type="number"
                 className="input"
                 min={100}
+                inputMode="numeric"
                 value={budget}
                 onChange={(e) => setBudget(Number(e.target.value))}
+                required
+                aria-required="true"
               />
+              <p className="field-hint">Cash on completion. No online payment.</p>
             </div>
 
             <label
@@ -191,15 +208,20 @@ export default function CustomerHomePage() {
             </label>
 
             <div>
-              <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
-                Service location (Islamabad)
+              <div className="form-label" id="area-label">
+                Service location (Islamabad) <span className="req">required</span>
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, maxHeight: 160, overflow: 'auto' }}>
+              <div
+                role="group"
+                aria-labelledby="area-label"
+                style={{ display: 'flex', flexWrap: 'wrap', gap: 8, maxHeight: 160, overflow: 'auto' }}
+              >
                 {areaChips.map((k) => (
                   <button
                     key={k}
                     type="button"
                     className={`chip${areaKey === k ? ' active' : ''}`}
+                    aria-pressed={areaKey === k}
                     onClick={() => setAreaKey(k)}
                   >
                     {k}
@@ -309,16 +331,24 @@ export default function CustomerHomePage() {
               </div>
             )}
 
-            {apiError && <p className="status-note error">{apiError}</p>}
+            {apiError && (
+              <p className="status-note error" role="alert">
+                {apiError}
+              </p>
+            )}
 
             <button
               type="button"
               className="btn btn-primary btn-block"
-              disabled={loading}
+              disabled={!canPost || loading}
               onClick={continueFlow}
+              title={!canPost ? 'Add a title or issue details, service, area, and budget' : undefined}
             >
-              {loading ? 'Posting…' : 'Find nearby workers'}
+              {loading ? 'Posting request…' : 'Find nearby workers'}
             </button>
+            {!canPost && (
+              <p className="field-hint">Add a title or issue details to continue.</p>
+            )}
           </div>
         </div>
       </div>

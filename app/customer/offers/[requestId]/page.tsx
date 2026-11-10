@@ -3,9 +3,11 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, BadgeCheck, Clock, MapPin, Star } from 'lucide-react'
+import { CustomerFlowSteps } from '@/components/FlowSteps'
 import { useSession } from '@/components/SessionProvider'
 import { usePolling, useRealtime } from '@/hooks/useRealtime'
 import { api } from '@/lib/client'
+import { friendlyError } from '@/lib/ui/errors'
 
 type Offer = {
   offerId: string
@@ -51,10 +53,10 @@ export default function CompareOffersPage() {
       event === 'offer:withdrawn' ||
       event === 'booking:confirmed'
     ) {
-      load().catch((e) => setError(e.message))
+      load().catch((e) => setError(friendlyError(e)))
     }
   })
-  usePolling(() => load().catch((e) => setError(e.message)), 2500, true)
+  usePolling(() => load().catch((e) => setError(friendlyError(e))), 2500, true)
 
   const sorted = useMemo(() => {
     const list = [...offers]
@@ -95,7 +97,7 @@ export default function CompareOffersPage() {
       })
       router.push(`/customer/booking?bookingId=${booking.id}`)
     } catch (e) {
-      setError((e as Error).message)
+      setError(friendlyError(e, 'Could not accept that offer. Try another worker.'))
     } finally {
       setLoadingId(null)
     }
@@ -108,19 +110,29 @@ export default function CompareOffersPage() {
           type="button"
           className="back-btn"
           onClick={() => router.push(`/customer/dispatch/${requestId}`)}
-          aria-label="Back"
+          aria-label="Back to search status"
         >
           <ArrowLeft size={18} />
         </button>
         <h2 className="page-title">Compare offers</h2>
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+      <CustomerFlowSteps current="offers" />
+      <p className="section-sub" style={{ marginTop: 0 }}>
+        Prices are in PKR. Accept one offer to confirm the booking.
+      </p>
+
+      <div
+        role="group"
+        aria-label="Sort offers"
+        style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}
+      >
         {SORTS.map((s) => (
           <button
             key={s}
             type="button"
             className={`chip${sort === s ? ' active' : ''}`}
+            aria-pressed={sort === s}
             onClick={() => setSort(s)}
           >
             {s}
@@ -129,7 +141,9 @@ export default function CompareOffersPage() {
       </div>
 
       {sorted.length === 0 && (
-        <div className="empty-state">No offers yet. Waiting for workers.</div>
+        <div className="empty-state" aria-live="polite">
+          No offers yet. Waiting for nearby workers…
+        </div>
       )}
 
       <div className="stack">

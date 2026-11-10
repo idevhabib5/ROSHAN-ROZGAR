@@ -68,7 +68,7 @@ export function JobAlertModal({
             View details
           </button>
           <button type="button" className="btn btn-outline" onClick={onDecline}>
-            Decline
+            Not interested
           </button>
         </div>
       </div>
