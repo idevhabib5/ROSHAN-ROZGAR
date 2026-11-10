@@ -8,14 +8,16 @@ import {
   Calendar,
   MapPin,
   Mic,
-  Sparkles,
+  Volume2,
   User,
   Wrench,
 } from 'lucide-react'
+import { AiDisclosure } from '@/components/AiDisclosure'
 import { useSession } from '@/components/SessionProvider'
 import { useSpeech } from '@/hooks/useSpeech'
 import { api } from '@/lib/client'
 import { AREAS } from '@/lib/geo'
+import { friendlyError } from '@/lib/ui/errors'
 
 export default function WorkerConfirmPage() {
   const router = useRouter()
@@ -31,9 +33,9 @@ export default function WorkerConfirmPage() {
     if (!profile) router.replace('/worker/onboarding')
   }, [ready, profile, router])
 
-  useEffect(() => {
-    if (!profile) return
-    const line = [
+  const buildSpokenSummary = () => {
+    if (!profile) return ''
+    return [
       profile.name && `Naam ${profile.name}`,
       profile.trade && `Hunar ${profile.trade}`,
       profile.experienceYears != null && `Tajurba ${profile.experienceYears} saal`,
@@ -43,6 +45,11 @@ export default function WorkerConfirmPage() {
     ]
       .filter(Boolean)
       .join('. ')
+  }
+
+  useEffect(() => {
+    if (!profile) return
+    const line = buildSpokenSummary()
     if (line) speak(line)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.transcript])
@@ -67,7 +74,7 @@ export default function WorkerConfirmPage() {
     { icon: MapPin, label: 'Work area', value: serviceArea },
     {
       icon: Banknote,
-      label: 'Indicative visit charge',
+      label: 'Visit charge',
       value: profile.visitChargePkr != null ? `Rs. ${profile.visitChargePkr}` : null,
     },
   ]
@@ -100,7 +107,7 @@ export default function WorkerConfirmPage() {
       patch({ role: 'worker' })
       router.push('/worker/home')
     } catch (e) {
-      setError((e as Error).message)
+      setError(friendlyError(e, 'Could not save your profile. Try again.'))
     } finally {
       setSaving(false)
     }
@@ -117,18 +124,24 @@ export default function WorkerConfirmPage() {
         >
           <ArrowLeft size={18} />
         </button>
-        <h2>Does this sound right?</h2>
+        <h2 className="page-title">Confirm your profile</h2>
       </div>
 
+      <AiDisclosure mode="banner" />
+
       <div className="content-card stack">
-        <div style={{ textAlign: 'center' }}>
-          <span className="badge badge-success">
-            <Sparkles size={12} /> AI ()
-          </span>
-          <p className="section-sub" style={{ marginTop: 12, marginBottom: 0 }}>
-            Galat ho to dobara bolain. Missing fields invent nahi kiye jayenge.
-          </p>
-        </div>
+        <p className="section-sub" style={{ marginTop: 0 }}>
+          Listen to the summary. Correct by speaking again if anything is wrong. Missing fields stay
+          blank — nothing is invented.
+        </p>
+
+        <button
+          type="button"
+          className="btn btn-secondary btn-block"
+          onClick={() => speak(buildSpokenSummary())}
+        >
+          <Volume2 size={16} /> Hear profile again
+        </button>
 
         <div className="card">
           {fields.map(({ icon: Icon, label, value }) => (
@@ -148,24 +161,27 @@ export default function WorkerConfirmPage() {
 
         {!profile.serviceArea && (
           <div>
-            <div className="muted" style={{ marginBottom: 8 }}>
-              Set your work area
+            <div className="form-label" id="confirm-area">
+              Set your work area <span className="req">required</span>
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <div
+              role="group"
+              aria-labelledby="confirm-area"
+              style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}
+            >
               {Object.keys(AREAS).map((k) => (
                 <button
                   key={k}
                   type="button"
                   className={`chip${areaKey === k ? ' active' : ''}`}
+                  aria-pressed={areaKey === k}
                   onClick={() => setAreaKey(k)}
                 >
                   {k}
                 </button>
               ))}
             </div>
-            <p className="muted" style={{ marginTop: 8, marginBottom: 0, fontSize: 12 }}>
-              Cash on completion. No online payment.
-            </p>
+            <p className="field-hint">Cash on completion. No online payment.</p>
           </div>
         )}
 
@@ -175,7 +191,11 @@ export default function WorkerConfirmPage() {
           </div>
         )}
 
-        {error && <p style={{ fontSize: 12, color: 'var(--danger)', margin: 0 }}>{error}</p>}
+        {error && (
+          <p className="status-note error" role="alert">
+            {error}
+          </p>
+        )}
 
         <div className="sticky-actions" style={{ marginTop: 0 }}>
           <button
@@ -183,15 +203,16 @@ export default function WorkerConfirmPage() {
             className="btn btn-primary"
             disabled={!canConfirm || saving}
             onClick={confirm}
+            title={!canConfirm ? 'Fill all required profile fields first' : undefined}
           >
-            {saving ? 'Saving…' : 'Tasdeeq Karein'}
+            {saving ? 'Saving…' : 'Confirm profile'}
           </button>
           <button
             type="button"
             className="btn btn-outline"
             onClick={() => router.push('/worker/onboarding')}
           >
-            <Mic size={16} /> Dobara Bolain
+            <Mic size={16} /> Speak again
           </button>
         </div>
       </div>

@@ -12,7 +12,7 @@ COMSATS AI Web Forge Hackathon MVP — responsive web marketplace connecting nea
 - **Prisma** + **SQLite** (transactional booking + dispatch sessions)
 - **Socket.IO** via custom [`server.mjs`](server.mjs) for live dispatch/offers
 - **Zod** validation on API routes
-- **AI:** Web Speech + heuristic/OpenAI extract
+- **AI:** Gemini (preferred) / OpenAI / heuristic extract + browser Web Speech / Gemini Live voice
 - **Geo:** Haversine + bounding-box prefilter (SQLite — not PostGIS)
 
 ## Auth (signup / login)
@@ -88,7 +88,10 @@ npm run start:win
 | `DISPATCH_TICKER_MS` | `5000` | server tick |
 | `DISPATCH_TICK_SECRET` | `local-dev-tick` | tick API auth |
 | `DISPATCH_VERIFICATION_REQUIRED` | off | require verified workers |
-| `OPENAI_API_KEY` | — | optional AI |
+| `GEMINI_API_KEY` | — | preferred AI + Live speech tokens |
+| `GEMINI_MODEL` | `gemini-3.8-flash` | text/audio extraction |
+| `GEMINI_LIVE_MODEL` | `gemini-3.8-live` | realtime speech-to-speech |
+| `OPENAI_API_KEY` | — | optional AI fallback |
 | `FCM_*` | — | **not wired** — inbox + socket only |
 
 ## Real vs simulated
@@ -103,10 +106,22 @@ npm run start:win
 
 **Simulated / disclosed**
 
-- Demo auth headers / role switch
-- Seeded workers & reviews
+- Demo auth headers / role switch (plus optional Auth.js email/OAuth)
+- Seeded workers & reviews (demo ratings labeled in seed)
+- Chat voice notes stored as short data URLs in SQLite (hackathon demo, not production media storage)
 - No FCM background push unless you add it later
 - SQLite Haversine (not PostGIS indexes)
+- No payments/wallets, org hiring, admin dashboard, CNIC verification (PRD non-goals)
+
+### PRD coverage (hackathon MVP)
+
+| Outcome | Status |
+| --- | --- |
+| O1 Voice worker onboarding + spoken confirm | Done (STT/Gemini + TTS readback) |
+| O2 Nearby available discovery / dispatch | Done |
+| O3 Voice-friendly chat + PKR quote | Done (record/play voice notes + quotes) |
+| O4 Atomic booking + engaged state | Done |
+| O5 Completion + one review | Done (review gated until completed) |
 
 ## Geo tradeoff
 

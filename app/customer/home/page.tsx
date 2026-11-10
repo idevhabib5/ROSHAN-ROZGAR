@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Hammer, Mic, Sparkles, Wind, Wrench, Zap } from 'lucide-react'
+import { AiDisclosure } from '@/components/AiDisclosure'
 import { BottomNav } from '@/components/BottomNav'
 import { CustomerFlowSteps } from '@/components/FlowSteps'
 import { useSession } from '@/components/SessionProvider'
@@ -137,6 +138,7 @@ export default function CustomerHomePage() {
           Choose a service, area, and budget. Nearby workers can send offers in PKR.
         </p>
         <CustomerFlowSteps current="request" />
+        <AiDisclosure mode="banner" />
 
         <div className="panel-grid">
           <div className="content-card stack">

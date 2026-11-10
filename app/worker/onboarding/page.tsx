@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Mic, RotateCcw, Square } from 'lucide-react'
+import { AiDisclosure } from '@/components/AiDisclosure'
 import { useSession } from '@/components/SessionProvider'
 import { useVoiceInput } from '@/hooks/useVoiceInput'
 import { api } from '@/lib/client'
@@ -66,8 +67,10 @@ export default function WorkerOnboardingPage() {
         <button type="button" className="back-btn" onClick={() => router.push('/')} aria-label="Back">
           <ArrowLeft size={18} />
         </button>
-        <h2>Voice profile</h2>
+        <h2 className="page-title">Voice profile</h2>
       </div>
+
+      <AiDisclosure mode="banner" />
 
       <div className="content-card stack">
         <div>

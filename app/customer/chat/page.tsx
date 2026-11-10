@@ -2,15 +2,19 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Mic, Play, Send } from 'lucide-react'
+import { ArrowLeft, Mic, Play, Send, Square } from 'lucide-react'
 import { useSession } from '@/components/SessionProvider'
+import { useSpeech } from '@/hooks/useSpeech'
+import { useVoiceNote } from '@/hooks/useVoiceNote'
 import { api } from '@/lib/client'
+import { friendlyError } from '@/lib/ui/errors'
 
 type Msg = {
   id: string
   senderRole: string
   messageText: string | null
   audioLabel: string | null
+  audioDataUrl?: string | null
 }
 
 type Quote = {
@@ -23,6 +27,8 @@ type Quote = {
 export default function ChatPage() {
   const router = useRouter()
   const { session, patch } = useSession()
+  const { speak } = useSpeech()
+  const voice = useVoiceNote()
   const [messages, setMessages] = useState<Msg[]>([])
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [workerName, setWorkerName] = useState('Worker')
@@ -55,11 +61,15 @@ export default function ChatPage() {
       router.replace('/customer/home')
       return
     }
-    load().catch((e) => setError(e.message))
+    load().catch((e) => setError(friendlyError(e)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestId, workerId])
 
-  const sendMessage = async (messageText: string, audioLabel?: string) => {
+  const sendMessage = async (args: {
+    messageText?: string
+    audioLabel?: string
+    audioDataUrl?: string
+  }) => {
     if (!requestId || !workerId) return
     setLoading(true)
     setError(null)
@@ -71,17 +81,36 @@ export default function ChatPage() {
           workerId,
           senderRole: 'customer',
           senderId: session.customerId,
-          messageText,
-          audioLabel: audioLabel || null,
+          messageText: args.messageText || null,
+          audioLabel: args.audioLabel || null,
+          audioDataUrl: args.audioDataUrl || null,
         }),
       })
       setText('')
       await load()
     } catch (e) {
-      setError((e as Error).message)
+      setError(friendlyError(e, 'Could not send the message. Try again.'))
     } finally {
       setLoading(false)
     }
+  }
+
+  const toggleMic = async () => {
+    setError(null)
+    if (voice.recording) {
+      const dataUrl = await voice.stop()
+      if (!dataUrl) {
+        setError(voice.error || 'Could not capture voice note.')
+        return
+      }
+      await sendMessage({
+        messageText: 'Voice note',
+        audioLabel: 'Customer voice note',
+        audioDataUrl: dataUrl,
+      })
+      return
+    }
+    await voice.start()
   }
 
   const acceptQuote = async (quoteId: string) => {
@@ -92,10 +121,19 @@ export default function ChatPage() {
       patch({ quoteId })
       await load()
     } catch (e) {
-      setError((e as Error).message)
+      setError(friendlyError(e, 'Could not accept the price. Try again.'))
     } finally {
       setLoading(false)
     }
+  }
+
+  const playMessage = (m: Msg) => {
+    if (m.audioDataUrl) {
+      const audio = new Audio(m.audioDataUrl)
+      void audio.play().catch(() => setError('Could not play this voice note.'))
+      return
+    }
+    if (m.messageText) speak(m.messageText)
   }
 
   const latestQuote = quotes[0]
@@ -112,7 +150,7 @@ export default function ChatPage() {
         >
           <ArrowLeft size={18} />
         </button>
-        <h2>Let&apos;s talk it through</h2>
+        <h2 className="page-title">Messages</h2>
       </div>
 
       <div className="chat-shell">
@@ -137,7 +175,7 @@ export default function ChatPage() {
           <div>
             <strong>{workerName}</strong>
             <div className="muted" style={{ fontSize: 12 }}>
-              Clear work · clear price
+              Voice notes or text · prices in PKR
             </div>
           </div>
         </div>
@@ -149,8 +187,21 @@ export default function ChatPage() {
 
           {messages.map((m) => (
             <div key={m.id} className={`chat-bubble ${m.senderRole === 'customer' ? 'me' : 'them'}`}>
-              {m.audioLabel && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              {(m.audioLabel || m.audioDataUrl) && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  style={{
+                    justifyContent: 'flex-start',
+                    gap: 8,
+                    marginBottom: 4,
+                    padding: 0,
+                    minHeight: 32,
+                    color: 'inherit',
+                  }}
+                  onClick={() => playMessage(m)}
+                  aria-label="Play voice note"
+                >
                   <span
                     style={{
                       width: 28,
@@ -165,16 +216,22 @@ export default function ChatPage() {
                   >
                     <Play size={12} fill="currentColor" />
                   </span>
-                  <span style={{ fontSize: 11, opacity: 0.85 }}>{m.audioLabel}</span>
-                </div>
+                  <span style={{ fontSize: 11, opacity: 0.9 }}>
+                    {m.audioLabel || 'Voice note'} · tap to play
+                  </span>
+                </button>
               )}
-              {m.messageText}
+              {m.messageText && m.messageText !== 'Voice note' ? m.messageText : null}
+              {m.messageText === 'Voice note' && !m.audioDataUrl ? m.audioLabel : null}
             </div>
           ))}
 
           {latestQuote && (
             <div className="chat-bubble quote">
-              <div className="price-callout" style={{ border: 'none', background: 'transparent', padding: 0 }}>
+              <div
+                className="price-callout"
+                style={{ border: 'none', background: 'transparent', padding: 0 }}
+              >
                 <div className="muted" style={{ fontSize: 12 }}>
                   Worker quotation
                 </div>
@@ -197,10 +254,14 @@ export default function ChatPage() {
         </div>
 
         <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)' }}>
-          {error && <p style={{ fontSize: 12, color: 'var(--danger)' }}>{error}</p>}
+          {(error || voice.error) && (
+            <p className="status-note error" role="alert">
+              {error || voice.error}
+            </p>
+          )}
           {!latestQuote && (
             <p className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
-              Waiting for worker quote. Use Demo bridge → Worker → open job → send quote.
+              Waiting for a worker quote. Open the worker job page and send an offer.
             </p>
           )}
           {latestQuote && !agreed && (
@@ -217,7 +278,12 @@ export default function ChatPage() {
                 type="button"
                 className="btn btn-outline btn-sm"
                 disabled={loading}
-                onClick={() => sendMessage('Qeemat thori kam kar dein?', 'Negotiate voice')}
+                onClick={() =>
+                  sendMessage({
+                    messageText: 'Can you lower the price a little?',
+                    audioLabel: 'Negotiate',
+                  })
+                }
               >
                 Negotiate
               </button>
@@ -229,7 +295,7 @@ export default function ChatPage() {
               className="btn btn-primary btn-block"
               onClick={() => router.push('/customer/booking')}
             >
-              Clear work · confirm booking
+              Confirm booking
             </button>
           )}
         </div>
@@ -237,25 +303,29 @@ export default function ChatPage() {
         <div className="chat-shell-footer">
           <button
             type="button"
-            className="btn btn-secondary btn-sm"
+            className={`btn ${voice.recording ? 'btn-primary' : 'btn-secondary'} btn-sm`}
             style={{ borderRadius: 999, minWidth: 48, padding: 0 }}
-            onClick={() => sendMessage('Kitchen mein leakage hai.', 'Customer voice note')}
+            onClick={() => void toggleMic()}
+            aria-label={voice.recording ? 'Stop and send voice note' : 'Record voice note'}
+            disabled={loading}
           >
-            <Mic size={18} />
+            {voice.recording ? <Square size={16} fill="currentColor" /> : <Mic size={18} />}
           </button>
           <input
             className="input"
             style={{ borderRadius: 999, minHeight: 44 }}
-            placeholder="Optional text…"
+            placeholder={voice.recording ? 'Recording… tap stop to send' : 'Type a message…'}
             value={text}
             onChange={(e) => setText(e.target.value)}
+            disabled={voice.recording}
           />
           <button
             type="button"
             className="btn btn-primary btn-sm"
             style={{ borderRadius: 999, minWidth: 48, padding: 0 }}
-            disabled={!text.trim() || loading}
-            onClick={() => sendMessage(text.trim())}
+            disabled={!text.trim() || loading || voice.recording}
+            onClick={() => sendMessage({ messageText: text.trim() })}
+            aria-label="Send message"
           >
             <Send size={16} />
           </button>

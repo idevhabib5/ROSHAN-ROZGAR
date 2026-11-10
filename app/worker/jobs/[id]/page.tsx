@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Banknote, Clock, MapPin } from 'lucide-react'
+import { ArrowLeft, Banknote, Clock, MapPin, Volume2 } from 'lucide-react'
 import { useSession } from '@/components/SessionProvider'
 import { useRealtime } from '@/hooks/useRealtime'
+import { useSpeech } from '@/hooks/useSpeech'
 import { api } from '@/lib/client'
 import { approxAreaLabel } from '@/lib/geo'
 import { friendlyError } from '@/lib/ui/errors'
@@ -52,6 +53,7 @@ export default function WorkerJobPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const { session } = useSession()
+  const { speak } = useSpeech()
   const [req, setReq] = useState<RequestDetail | null>(null)
   const [amount, setAmount] = useState(1500)
   const [eta, setEta] = useState(20)
@@ -150,6 +152,19 @@ export default function WorkerJobPage() {
 
   const approx = approxAreaLabel(req.location)
 
+  const hearDetails = () => {
+    const line = [
+      req.trade && `Kaam ${req.trade}`,
+      req.issueDescription,
+      approx && `Ilaqa ${approx}`,
+      req.preferredTime && `Waqt ${req.preferredTime}`,
+      req.budgetPkr != null && `Budget ${req.budgetPkr} rupay`,
+    ]
+      .filter(Boolean)
+      .join('. ')
+    if (line) speak(line)
+  }
+
   return (
     <div className="screen narrow">
       <div className="page-header">
@@ -177,6 +192,9 @@ export default function WorkerJobPage() {
           </span>
         </div>
         <p style={{ margin: 0, fontSize: 14 }}>{req.issueDescription}</p>
+        <button type="button" className="btn btn-secondary" onClick={hearDetails}>
+          <Volume2 size={16} /> Hear job details
+        </button>
 
         <div className="field-row">
           <div className="field-icon">

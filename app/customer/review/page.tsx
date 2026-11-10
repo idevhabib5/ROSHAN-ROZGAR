@@ -2,10 +2,11 @@
 
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeft, Check, Mic } from 'lucide-react'
+import { ArrowLeft, Check } from 'lucide-react'
 import { Stars } from '@/components/Stars'
 import { useSession } from '@/components/SessionProvider'
 import { api } from '@/lib/client'
+import { friendlyError } from '@/lib/ui/errors'
 
 function ReviewInner() {
   const router = useRouter()
@@ -13,7 +14,7 @@ function ReviewInner() {
   const { session } = useSession()
   const bookingId = search.get('bookingId') || session.bookingId
   const [rating, setRating] = useState(5)
-  const [comment, setComment] = useState('Bohot acha kaam. Leak jaldi theek ho gaya.')
+  const [comment, setComment] = useState('')
   const [booking, setBooking] = useState<{
     id: string
     status: string
@@ -35,36 +36,29 @@ function ReviewInner() {
         setBooking(b)
         if (b.review) setSubmitted(true)
       })
-      .catch((e) => setError(e.message))
+      .catch((e) => setError(friendlyError(e)))
   }, [bookingId])
 
+  const completed = booking?.status === 'completed'
+  const canReview = Boolean(bookingId && completed && !booking?.review)
+
   const submit = async () => {
-    if (!bookingId) return
+    if (!bookingId || !canReview) return
     setLoading(true)
     setError(null)
     try {
-      if (booking?.status !== 'completed') {
-        await api(`/api/bookings/${bookingId}/status`, {
-          method: 'PATCH',
-          body: JSON.stringify({ status: 'in_progress' }),
-        }).catch(() => undefined)
-        await api(`/api/bookings/${bookingId}/status`, {
-          method: 'PATCH',
-          body: JSON.stringify({ status: 'completed' }),
-        })
-      }
       await api('/api/reviews', {
         method: 'POST',
         body: JSON.stringify({
           bookingId,
           customerId: session.customerId,
           rating,
-          comment,
+          comment: comment.trim() || null,
         }),
       })
       setSubmitted(true)
     } catch (e) {
-      setError((e as Error).message)
+      setError(friendlyError(e, 'Could not save your review. Try again.'))
     } finally {
       setLoading(false)
     }
@@ -93,23 +87,18 @@ function ReviewInner() {
         <button
           type="button"
           className="back-btn"
-          onClick={() => router.push('/customer/booking')}
+          onClick={() => router.push(bookingId ? `/customer/booking?bookingId=${bookingId}` : '/customer/home')}
           aria-label="Back"
         >
           <ArrowLeft size={18} />
         </button>
-        <h2>How did it go?</h2>
+        <h2 className="page-title">Leave a review</h2>
       </div>
 
       <div className="content-card stack" style={{ textAlign: 'center' }}>
-        <div className="success-hero" style={{ padding: 16 }}>
-          <div className="icon-ring" style={{ width: 64, height: 64 }}>
-            <Check size={28} />
-          </div>
-          <h1 className="section-title" style={{ fontSize: 22 }}>
-            How was the work?
-          </h1>
-        </div>
+        <h1 className="section-title" style={{ fontSize: 22 }}>
+          How was the work?
+        </h1>
 
         {booking && (
           <>
@@ -127,16 +116,26 @@ function ReviewInner() {
             <div className="muted truncate-2">
               {booking.request.issueDescription} · {booking.request.location}
             </div>
+            <span className={`badge ${completed ? 'badge-success' : 'badge-warning'}`}>
+              {completed ? 'Job completed' : `Status: ${booking.status}`}
+            </span>
           </>
         )}
 
+        {!completed && booking && (
+          <div className="status-note" role="status">
+            Reviews unlock after the worker marks the job complete. Ask them to open the booking and
+            mark it completed, then return here.
+          </div>
+        )}
+
         <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <Stars value={rating} size onChange={setRating} />
+          <Stars value={rating} size onChange={canReview ? setRating : undefined} />
         </div>
 
         <div>
           <label className="form-label" htmlFor="review-comment">
-            Comment (optional)
+            Comment <span className="opt">optional</span>
           </label>
           <textarea
             id="review-comment"
@@ -144,49 +143,36 @@ function ReviewInner() {
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             placeholder="Short feedback…"
+            disabled={!canReview}
           />
         </div>
 
-        <div className="card-soft" style={{ display: 'flex', gap: 12, textAlign: 'left' }}>
-          <span
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: '50%',
-              background: 'var(--primary)',
-              color: '#fff',
-              display: 'grid',
-              placeItems: 'center',
-              flexShrink: 0,
-            }}
-            aria-hidden
-          >
-            <Mic size={16} />
-          </span>
-          <div>
-            <strong style={{ fontSize: 14 }}>Voice review</strong>
-            <div className="muted" style={{ fontSize: 12 }}>
-              Text review is the primary option in this demo.
-            </div>
-          </div>
-        </div>
-
-        {error && <p className="status-note error">{error}</p>}
-        {booking && booking.status !== 'completed' && (
-          <p className="muted" style={{ fontSize: 12 }}>
-            If the worker has not marked complete yet, submit will complete the booking and save
-            your review.
+        {error && (
+          <p className="status-note error" role="alert">
+            {error}
           </p>
         )}
 
-        <button
-          type="button"
-          className="btn btn-primary btn-block"
-          disabled={loading || !bookingId}
-          onClick={submit}
-        >
-          {loading ? 'Submitting…' : 'Submit review'}
-        </button>
+        <div className="sticky-actions" style={{ marginTop: 0 }}>
+          <button
+            type="button"
+            className="btn btn-primary btn-block"
+            disabled={loading || !canReview}
+            onClick={submit}
+            title={!canReview ? 'Available only after job completion' : undefined}
+          >
+            {loading ? 'Submitting…' : 'Submit review'}
+          </button>
+          {bookingId && !completed && (
+            <button
+              type="button"
+              className="btn btn-outline btn-block"
+              onClick={() => router.push(`/worker/bookings/${bookingId}`)}
+            >
+              Open worker completion screen
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )

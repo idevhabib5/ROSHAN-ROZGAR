@@ -87,14 +87,16 @@ model ServiceRequest {
 }
 
 model Message {
-  id          String   @id @default(cuid())
-  requestId   String
-  workerId    String?
-  senderRole  String
-  senderId    String
-  messageText String?
-  audioLabel  String?
-  createdAt   DateTime @default(now())
+  id           String   @id @default(cuid())
+  requestId    String
+  workerId     String?
+  senderRole   String
+  senderId     String
+  messageText  String?
+  audioLabel   String?
+  /** Short demo voice note as data URL (hackathon scope; not production storage). */
+  audioDataUrl String?
+  createdAt    DateTime @default(now())
 
   request ServiceRequest @relation(fields: [requestId], references: [id])
   worker  Worker?        @relation(fields: [workerId], references: [id])

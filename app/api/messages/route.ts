@@ -9,11 +9,22 @@ const createSchema = z.object({
   senderId: z.string().min(1),
   messageText: z.string().max(1000).optional().nullable(),
   audioLabel: z.string().max(200).optional().nullable(),
+  audioDataUrl: z
+    .string()
+    .max(1_200_000)
+    .regex(/^data:audio\/[\w.+-]+;base64,/, 'Invalid audio data URL')
+    .optional()
+    .nullable(),
 })
 
 export async function POST(req: Request) {
   try {
     const body = createSchema.parse(await req.json())
+    if (!body.messageText && !body.audioDataUrl && !body.audioLabel) {
+      return handleRouteError(
+        Object.assign(new Error('Message text or voice note required'), { status: 400 }),
+      )
+    }
     const message = await prisma.message.create({
       data: {
         requestId: body.requestId,
@@ -22,6 +33,7 @@ export async function POST(req: Request) {
         senderId: body.senderId,
         messageText: body.messageText || null,
         audioLabel: body.audioLabel || null,
+        audioDataUrl: body.audioDataUrl || null,
       },
     })
     return jsonOk(message, 201)
