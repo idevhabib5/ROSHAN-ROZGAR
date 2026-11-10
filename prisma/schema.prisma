@@ -1,0 +1,177 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Worker {
+  id               String    @id @default(cuid())
+  displayName      String
+  trade            String
+  experienceYears  Int
+  serviceArea      String
+  latitude         Float
+  longitude        Float
+  lastLat          Float?
+  lastLng          Float?
+  lastLocationAt   DateTime?
+  onlinePreference Boolean   @default(true)
+  accountStatus    String    @default("active")
+  verificationStatus String  @default("unverified")
+  visitChargePkr   Int
+  onboardingMethod String    @default("voice")
+  photoUrl         String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  quotes                Quote[]
+  bookings              Booking[]
+  messages              Message[]
+  reviews               Review[]
+  dispatchNotifications DispatchNotification[]
+}
+
+model Customer {
+  id          String   @id @default(cuid())
+  displayName String
+  serviceArea String
+  latitude    Float
+  longitude   Float
+  photoUrl    String?
+  createdAt   DateTime @default(now())
+
+  requests ServiceRequest[]
+  bookings Booking[]
+  reviews  Review[]
+}
+
+model ServiceRequest {
+  id               String   @id @default(cuid())
+  customerId       String
+  trade            String
+  title            String?
+  issueDescription String
+  location         String
+  latitude         Float
+  longitude        Float
+  urgency          String
+  preferredTime    String
+  budgetPkr        Int?
+  isDiagnostic     Boolean  @default(false)
+  mediaUrls        String?
+  status           String   @default("open")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @default(now()) @updatedAt
+
+  customer            Customer               @relation(fields: [customerId], references: [id])
+  messages            Message[]
+  quotes              Quote[]
+  bookings            Booking[]
+  dispatchSession     DispatchSession?
+  dispatchNotifications DispatchNotification[]
+}
+
+model Message {
+  id          String   @id @default(cuid())
+  requestId   String
+  workerId    String?
+  senderRole  String
+  senderId    String
+  messageText String?
+  audioLabel  String?
+  createdAt   DateTime @default(now())
+
+  request ServiceRequest @relation(fields: [requestId], references: [id])
+  worker  Worker?        @relation(fields: [workerId], references: [id])
+}
+
+model Quote {
+  id         String    @id @default(cuid())
+  requestId  String
+  workerId   String
+  amountPkr  Int
+  etaMinutes Int?
+  message    String?
+  state      String    @default("proposed")
+  expiresAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  request  ServiceRequest @relation(fields: [requestId], references: [id])
+  worker   Worker         @relation(fields: [workerId], references: [id])
+  bookings Booking[]
+
+  @@index([requestId, workerId, state])
+}
+
+model Booking {
+  id              String   @id @default(cuid())
+  requestId       String   @unique
+  workerId        String
+  customerId      String
+  acceptedQuoteId String
+  agreedAmountPkr Int
+  scheduledTime   String
+  status          String   @default("confirmed")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  request       ServiceRequest @relation(fields: [requestId], references: [id])
+  worker        Worker         @relation(fields: [workerId], references: [id])
+  customer      Customer       @relation(fields: [customerId], references: [id])
+  acceptedQuote Quote          @relation(fields: [acceptedQuoteId], references: [id])
+  review        Review?
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  bookingId  String   @unique
+  workerId   String
+  customerId String
+  rating     Int
+  comment    String?
+  isDemoSeed Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  booking  Booking  @relation(fields: [bookingId], references: [id])
+  worker   Worker   @relation(fields: [workerId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+}
+
+model DispatchSession {
+  id               String   @id @default(cuid())
+  requestId        String   @unique
+  status           String   @default("searching")
+  stageIndex       Int      @default(0)
+  currentRadiusKm  Float    @default(3)
+  notifiedCount    Int      @default(0)
+  offerCount       Int      @default(0)
+  nextExpandAt     DateTime?
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  request       ServiceRequest         @relation(fields: [requestId], references: [id])
+  notifications DispatchNotification[]
+}
+
+model DispatchNotification {
+  id          String   @id @default(cuid())
+  sessionId   String
+  requestId   String
+  workerId    String
+  distanceKm  Float
+  approxArea  String
+  deliveredAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  session DispatchSession @relation(fields: [sessionId], references: [id])
+  request ServiceRequest  @relation(fields: [requestId], references: [id])
+  worker  Worker          @relation(fields: [workerId], references: [id])
+
+  @@unique([requestId, workerId])
+  @@index([workerId, createdAt])
+}

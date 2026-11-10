@@ -1,0 +1,288 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useParams, useRouter } from 'next/navigation'
+import { ArrowLeft, Banknote, Clock, MapPin } from 'lucide-react'
+import { DemoBridge } from '@/components/DemoBridge'
+import { useSession } from '@/components/SessionProvider'
+import { useRealtime } from '@/hooks/useRealtime'
+import { api } from '@/lib/client'
+import { approxAreaLabel } from '@/lib/geo'
+
+type RequestDetail = {
+  id: string
+  title?: string | null
+  trade: string
+  issueDescription: string
+  location: string
+  preferredTime: string
+  budgetPkr?: number | null
+  urgency: string
+  status: string
+  customer: { id: string; displayName: string; photoUrl?: string | null }
+  quotes: {
+    id: string
+    amountPkr: number
+    etaMinutes?: number | null
+    state: string
+    workerId: string
+  }[]
+}
+
+export default function WorkerJobPage() {
+  const { id } = useParams<{ id: string }>()
+  const router = useRouter()
+  const { session } = useSession()
+  const [req, setReq] = useState<RequestDetail | null>(null)
+  const [amount, setAmount] = useState(1500)
+  const [eta, setEta] = useState(20)
+  const [message, setMessage] = useState('Main jaldi aa sakta hoon.')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [statusNote, setStatusNote] = useState<string | null>(null)
+
+  const load = async () => {
+    const data = await api<RequestDetail>(`/api/service-requests/${id}`)
+    setReq(data)
+    const mine = data.quotes.find((q) => q.workerId === session.workerId)
+    if (mine) {
+      setAmount(mine.amountPkr)
+      if (mine.etaMinutes) setEta(mine.etaMinutes)
+    } else if (data.budgetPkr) {
+      setAmount(data.budgetPkr)
+    }
+  }
+
+  useEffect(() => {
+    load().catch((e) => setError(e.message))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, session.workerId])
+
+  useRealtime((event) => {
+    if (event === 'offer:accepted') {
+      setStatusNote('Offer accepted — booking confirmed!')
+      load().catch(() => undefined)
+    }
+    if (event === 'offer:not_selected') {
+      setStatusNote('Another worker was selected for this job.')
+      load().catch(() => undefined)
+    }
+    if (event === 'job:request_cancelled' || event === 'job:request_expired') {
+      setStatusNote('This request is no longer open.')
+      load().catch(() => undefined)
+    }
+  })
+
+  const myQuote = req?.quotes.find((q) => q.workerId === session.workerId)
+
+  const sendOffer = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      await api('/api/offers', {
+        method: 'POST',
+        body: JSON.stringify({
+          requestId: id,
+          amountPkr: amount,
+          etaMinutes: eta,
+          message,
+        }),
+      })
+      await load()
+      setStatusNote('Offer submitted — waiting for customer decision.')
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const withdraw = async () => {
+    if (!myQuote) return
+    setLoading(true)
+    try {
+      await api(`/api/offers/${myQuote.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ action: 'withdraw' }),
+      })
+      await load()
+      setStatusNote('Offer withdrawn.')
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!req) {
+    return (
+      <div className="screen narrow">
+        <div className="loading-state">{error || 'Loading job…'}</div>
+      </div>
+    )
+  }
+
+  const approx = approxAreaLabel(req.location)
+
+  return (
+    <div className="screen narrow">
+      <div className="page-header">
+        <button
+          type="button"
+          className="back-btn"
+          onClick={() => router.push('/worker/home')}
+          aria-label="Back"
+        >
+          <ArrowLeft size={18} />
+        </button>
+        <div>
+          <p className="kicker" style={{ marginBottom: 2 }}>
+            Job request details
+          </p>
+          <h2 style={{ margin: 0 }}>{req.title || 'New job opportunity'}</h2>
+        </div>
+      </div>
+
+      <div className="content-card stack">
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+          <strong>{req.trade}</strong>
+          <span className="badge badge-warning">{req.status}</span>
+        </div>
+        <p style={{ margin: 0, fontSize: 14 }}>{req.issueDescription}</p>
+
+        <div className="field-row">
+          <div className="field-icon">
+            <MapPin size={18} />
+          </div>
+          <div>
+            <div className="muted" style={{ fontSize: 12 }}>
+              Approximate area (precise address after booking)
+            </div>
+            <strong>{approx}</strong>
+          </div>
+        </div>
+        <div className="field-row">
+          <div className="field-icon">
+            <Clock size={18} />
+          </div>
+          <div>
+            <div className="muted" style={{ fontSize: 12 }}>
+              Preferred time / urgency
+            </div>
+            <strong>
+              {req.preferredTime} · {req.urgency}
+            </strong>
+          </div>
+        </div>
+        <div className="field-row" style={{ border: 0 }}>
+          <div className="field-icon">
+            <Banknote size={18} />
+          </div>
+          <div>
+            <div className="muted" style={{ fontSize: 12 }}>
+              Customer budget
+            </div>
+            <strong>{req.budgetPkr != null ? `Rs. ${req.budgetPkr}` : 'Not set'}</strong>
+          </div>
+        </div>
+      </div>
+
+      {statusNote && (
+        <div className="card-green" style={{ marginTop: 14, fontSize: 14 }}>
+          {statusNote}
+        </div>
+      )}
+
+      {!myQuote && ['searching', 'offers_received', 'open', 'quoted'].includes(req.status) && (
+        <div className="content-card stack" style={{ marginTop: 14 }}>
+          <h3 style={{ margin: 0, fontSize: 16 }}>Send offer</h3>
+          <label className="muted" style={{ fontSize: 12 }}>
+            Proposed price (PKR)
+            <input
+              type="number"
+              className="input"
+              style={{ marginTop: 6 }}
+              value={amount}
+              min={100}
+              onChange={(e) => setAmount(Number(e.target.value))}
+            />
+          </label>
+          <label className="muted" style={{ fontSize: 12 }}>
+            Estimated arrival (minutes)
+            <input
+              type="number"
+              className="input"
+              style={{ marginTop: 6 }}
+              value={eta}
+              min={5}
+              onChange={(e) => setEta(Number(e.target.value))}
+            />
+          </label>
+          <label className="muted" style={{ fontSize: 12 }}>
+            Message (optional)
+            <textarea
+              className="textarea"
+              style={{ marginTop: 6 }}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            className="btn btn-primary btn-block"
+            disabled={loading}
+            onClick={sendOffer}
+          >
+            {loading ? 'Sending…' : 'Send offer'}
+          </button>
+          <button
+            type="button"
+            className="btn btn-outline btn-block"
+            onClick={() => router.push('/worker/home')}
+          >
+            Decline / back
+          </button>
+        </div>
+      )}
+
+      {myQuote && (
+        <div className="content-card stack" style={{ marginTop: 14 }}>
+          <strong>Your offer</strong>
+          <div>
+            Rs. {myQuote.amountPkr}
+            {myQuote.etaMinutes != null ? ` · ${myQuote.etaMinutes} min` : ''} · {myQuote.state}
+          </div>
+          {['active', 'proposed'].includes(myQuote.state) && (
+            <button type="button" className="btn btn-outline" disabled={loading} onClick={withdraw}>
+              Withdraw offer
+            </button>
+          )}
+          {myQuote.state === 'accepted' && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => router.push('/worker/home')}
+            >
+              Go to home — open active booking
+            </button>
+          )}
+          {myQuote.state === 'not_selected' && (
+            <button type="button" className="btn btn-secondary" onClick={() => router.push('/worker/home')}>
+              Back to opportunities
+            </button>
+          )}
+        </div>
+      )}
+
+      {error && (
+        <p style={{ fontSize: 12, color: 'var(--danger)', margin: '10px 0 0' }}>{error}</p>
+      )}
+
+      <DemoBridge
+        hint="After sending offer, switch to Customer → Compare offers → Accept."
+        workerHref={`/worker/jobs/${id}`}
+        customerHref="/customer/home"
+      />
+    </div>
+  )
+}
