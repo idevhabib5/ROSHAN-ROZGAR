@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Mic, Play, Send } from 'lucide-react'
-import { DemoBridge } from '@/components/DemoBridge'
 import { useSession } from '@/components/SessionProvider'
 import { api } from '@/lib/client'
 
@@ -181,7 +180,7 @@ export default function ChatPage() {
                 </div>
                 <div className="amount">Rs. {latestQuote.amountPkr}</div>
                 <div className="muted" style={{ fontSize: 12 }}>
-                  {agreed ? 'Agreed price' : 'Proposed — accept to continue'}
+                  {agreed ? 'Agreed price' : 'Proposed. Accept to continue'}
                 </div>
               </div>
             </div>
@@ -262,12 +261,6 @@ export default function ChatPage() {
           </button>
         </div>
       </div>
-
-      <DemoBridge
-        hint="Worker ko quote bhejne ke liye Worker mode mein job open karein."
-        workerHref={requestId ? `/worker/jobs/${requestId}` : '/worker/home'}
-        customerHref="/customer/chat"
-      />
     </div>
   )
 }

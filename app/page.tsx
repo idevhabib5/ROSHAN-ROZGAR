@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession as useAuthSession } from 'next-auth/react'
 import {
   ChevronRight,
   HardHat,
@@ -37,52 +38,49 @@ const COPY: Record<
   roman: {
     kicker: 'Roshan Rozgar',
     title: 'Good work. Brighter tomorrows.',
-    lead: 'Assalam-o-Alaikum — ghar ke kaam ke liye bharosemand hunarmand. Voice se shuru karein, qareeb workers dhoondhein, qeemat clear rakhein, booking confirm karein.',
-    features: ['Let your voice begin', 'Nearby & available', 'Clear price & trust'],
+    lead: 'Assalam-o-Alaikum. Ghar ke kaam ke liye bharosemand hunarmand. Voice se shuru karein, qareeb workers dhoondhein, qeemat clear rakhein, booking confirm karein.',
+    features: ['Voice onboarding', 'Nearby workers', 'Clear pricing'],
     workerTitle: 'Main Hunarmand Hoon',
-    workerDesc: 'Worker — mic dabayein, apna naam batayein. Typing optional.',
+    workerDesc: 'Worker. Mic dabayein, apna naam batayein. Typing optional.',
     customerTitle: 'Mujhe Hunarmand Chahiye',
-    customerDesc: 'Customer — qareeb helping hand dhoondhein, jo abhi dastiyab ho.',
+    customerDesc: 'Customer. Qareeb worker dhoondhein jo abhi dastiyab ho.',
     voiceHint:
-      'AI awaz se naam, hunar, ilaqa aur masla samajhta hai — cash on completion, no online payment.',
-    demoNote:
-      'Demo identities (no real login): Ahmed Khan customer + Ali Raza worker. Auth is simulated for hackathon only.',
+      'AI awaz se naam, hunar, ilaqa aur masla samajhta hai. Cash on completion, no online payment.',
+    demoNote: 'Demo roles: Ahmed Khan (customer) and Ali Raza (worker).',
     heroTitle: 'Ghar ke Kaam ke Liye',
-    heroSub: 'Bharosemand Hunarmand — qareeb, dastiyab, clear qeemat',
+    heroSub: 'Bharosemand Hunarmand. Qareeb, dastiyab, clear qeemat',
     heroPill: 'Voice-first · Islamabad',
   },
   urdu: {
     kicker: 'روشن روزگار',
     title: 'اچھا کام۔ روشن کل۔',
-    lead: 'السلام علیکم — گھر کے کام کے لیے بھروسے مند ہنرمند۔ آواز سے شروع کریں، قریب ورکرز تلاش کریں، قیمت صاف رکھیں، بکنگ کنفرم کریں۔',
-    features: ['اپنی آواز سے شروع کریں', 'قریب اور دستیاب', 'صاف قیمت اور اعتماد'],
+    lead: 'السلام علیکم۔ گھر کے کام کے لیے بھروسے مند ہنرمند۔ آواز سے شروع کریں، قریب ورکرز تلاش کریں، قیمت صاف رکھیں، بکنگ کنفرم کریں۔',
+    features: ['آواز سے شروع کریں', 'قریب ورکرز', 'صاف قیمت'],
     workerTitle: 'میں ہنرمند ہوں',
-    workerDesc: 'ورکر — مائیک دبائیں، اپنا نام بتائیں۔ ٹائپنگ اختیاری۔',
+    workerDesc: 'ورکر۔ مائیک دبائیں، اپنا نام بتائیں۔ ٹائپنگ اختیاری۔',
     customerTitle: 'مجھے ہنرمند چاہیے',
-    customerDesc: 'کسٹمر — قریب مددگار تلاش کریں جو ابھی دستیاب ہو۔',
+    customerDesc: 'کسٹمر۔ قریب دستیاب ورکر تلاش کریں۔',
     voiceHint:
-      'اے آئی آواز سے نام، ہنر، علاقہ اور مسئلہ سمجھتا ہے — ادائیگی کام مکمل ہونے پر نقد، آن لائن ادائیگی نہیں۔',
-    demoNote:
-      'ڈیمو شناخت (اصل لاگ اِن نہیں): احمد خان کسٹمر + علی رضا ورکر۔ ہیکاتھون کے لیے نقلی تصدیق۔',
+      'اے آئی آواز سے نام، ہنر، علاقہ اور مسئلہ سمجھتا ہے۔ ادائیگی کام مکمل ہونے پر نقد؛ آن لائن ادائیگی نہیں۔',
+    demoNote: 'ڈیمو رولز: احمد خان (کسٹمر) اور علی رضا (ورکر)۔',
     heroTitle: 'گھر کے کام کے لیے',
-    heroSub: 'بھروسے مند ہنرمند — قریب، دستیاب، صاف قیمت',
+    heroSub: 'بھروسے مند ہنرمند۔ قریب، دستیاب، صاف قیمت',
     heroPill: 'آواز سے پہلے · اسلام آباد',
   },
   en: {
     kicker: 'Roshan Rozgar',
     title: 'Good work. Brighter tomorrows.',
-    lead: 'Assalam-o-Alaikum — trusted tradespeople for home jobs. Start with your voice, find nearby workers, keep the price clear, and confirm the booking.',
-    features: ['Let your voice begin', 'Nearby & available', 'Clear price & trust'],
+    lead: 'Assalam-o-Alaikum. Trusted tradespeople for home jobs. Start with your voice, find nearby workers, keep the price clear, and confirm the booking.',
+    features: ['Voice onboarding', 'Nearby workers', 'Clear pricing'],
     workerTitle: "I'm a skilled worker",
-    workerDesc: 'Worker — tap the mic, say your name. Typing optional.',
+    workerDesc: 'Worker. Tap the mic, say your name. Typing optional.',
     customerTitle: 'I need a skilled worker',
-    customerDesc: 'Customer — find a helping hand nearby, available now.',
+    customerDesc: 'Customer. Find a nearby available worker.',
     voiceHint:
-      'AI understands name, trade, area, and issue from speech — cash on completion, no online payment.',
-    demoNote:
-      'Demo identities (no real login): Ahmed Khan customer + Ali Raza worker. Auth is simulated for hackathon only.',
+      'AI understands name, trade, area, and issue from speech. Cash on completion, no online payment.',
+    demoNote: 'Demo roles: Ahmed Khan (customer) and Ali Raza (worker).',
     heroTitle: 'For household work',
-    heroSub: 'Trusted tradespeople — nearby, available, clear price',
+    heroSub: 'Trusted tradespeople. Nearby, available, clear price',
     heroPill: 'Voice-first · Islamabad',
   },
 }
@@ -90,6 +88,7 @@ const COPY: Record<
 export default function WelcomePage() {
   const router = useRouter()
   const { patch } = useSession()
+  const { data: auth } = useAuthSession()
   const [lang, setLang] = useState<Lang>('roman')
   const t = COPY[lang]
   const isUrdu = lang === 'urdu'
@@ -98,6 +97,11 @@ export default function WelcomePage() {
     <div className="landing" lang={isUrdu ? 'ur' : 'en'}>
       <div className="landing-grid">
         <section className={`landing-copy${isUrdu ? ' urdu' : ''}`}>
+          {auth?.user && (
+            <p className="kicker" style={{ marginBottom: 12 }}>
+              Signed in as {auth.user.name || auth.user.email}
+            </p>
+          )}
           <div className="lang-toggle" role="group" aria-label="Language" dir="ltr">
             <button
               type="button"
@@ -128,13 +132,13 @@ export default function WelcomePage() {
 
           <div className="feature-row">
             <div className="feature-chip">
-              <Mic2 size={18} color="#0b7a4b" /> {t.features[0]}
+              <Mic2 size={18} color="var(--primary)" /> {t.features[0]}
             </div>
             <div className="feature-chip">
-              <MapPin size={18} color="#0b7a4b" /> {t.features[1]}
+              <MapPin size={18} color="var(--primary)" /> {t.features[1]}
             </div>
             <div className="feature-chip">
-              <Sparkles size={18} color="#0b7a4b" /> {t.features[2]}
+              <Sparkles size={18} color="var(--primary)" /> {t.features[2]}
             </div>
           </div>
 

@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, MapPin, Star } from 'lucide-react'
 import { BottomNav } from '@/components/BottomNav'
-import { DemoBridge } from '@/components/DemoBridge'
 import { useSession } from '@/components/SessionProvider'
 import { api } from '@/lib/client'
 import { AREAS } from '@/lib/geo'
@@ -75,7 +74,7 @@ export default function NearbyWorkersPage() {
           >
             <ArrowLeft size={18} />
           </button>
-          <h2>Find a helping hand</h2>
+          <h2>Nearby workers</h2>
         </div>
         <p className="section-sub">
           {trade} · only bookable workers (server-computed availability)
@@ -137,7 +136,7 @@ export default function NearbyWorkersPage() {
                     <MapPin size={12} /> {w.distanceKm} km
                   </span>
                   <span className="chip" style={{ padding: '4px 8px' }}>
-                    <Star size={12} fill="#F5B942" color="#F5B942" /> {w.rating ?? '—'} ·{' '}
+                    <Star size={12} fill="#FFC928" color="#FFC928" /> {w.rating ?? '—'} ·{' '}
                     {w.reviewCount}
                   </span>
                 </div>
@@ -150,12 +149,6 @@ export default function NearbyWorkersPage() {
             </button>
           ))}
         </div>
-
-        <DemoBridge
-          hint="List empty ho to Worker mode mein availability ON karein, phir yahan refresh."
-          workerHref="/worker/home"
-          customerHref="/customer/workers"
-        />
       </div>
       <BottomNav role="customer" />
     </>

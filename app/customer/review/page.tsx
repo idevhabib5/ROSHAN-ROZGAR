@@ -4,7 +4,6 @@ import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Check, Mic } from 'lucide-react'
 import { Stars } from '@/components/Stars'
-import { DemoBridge } from '@/components/DemoBridge'
 import { useSession } from '@/components/SessionProvider'
 import { api } from '@/lib/client'
 
@@ -78,10 +77,8 @@ function ReviewInner() {
           <div className="icon-ring">
             <Check size={40} strokeWidth={2.5} />
           </div>
-          <h1 className="section-title">Job well done — shukriya!</h1>
-          <p className="section-sub">
-            Aapka review worker ki public reputation mein add ho gaya.
-          </p>
+          <h1 className="section-title">Thanks for your review</h1>
+          <p className="section-sub">Your feedback was added to the worker&apos;s public rating.</p>
           <button type="button" className="btn btn-primary btn-block" onClick={() => router.push('/')}>
             Back to start
           </button>
@@ -110,7 +107,7 @@ function ReviewInner() {
             <Check size={28} />
           </div>
           <h1 className="section-title" style={{ fontSize: 22 }}>
-            Kaam mukammal? Apna tajurba batayein.
+            How was the work?
           </h1>
         </div>
 
@@ -127,7 +124,7 @@ function ReviewInner() {
               style={{ margin: '0 auto' }}
             />
             <strong>{booking.worker.displayName}</strong>
-            <div className="muted">
+            <div className="muted truncate-2">
               {booking.request.issueDescription} · {booking.request.location}
             </div>
           </>
@@ -137,14 +134,20 @@ function ReviewInner() {
           <Stars value={rating} size onChange={setRating} />
         </div>
 
-        <textarea
-          className="textarea"
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          placeholder="Optional short feedback…"
-        />
+        <div>
+          <label className="form-label" htmlFor="review-comment">
+            Comment (optional)
+          </label>
+          <textarea
+            id="review-comment"
+            className="textarea"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="Short feedback…"
+          />
+        </div>
 
-        <button type="button" className="card-soft" style={{ display: 'flex', gap: 12, textAlign: 'left' }}>
+        <div className="card-soft" style={{ display: 'flex', gap: 12, textAlign: 'left' }}>
           <span
             style={{
               width: 36,
@@ -154,23 +157,25 @@ function ReviewInner() {
               color: '#fff',
               display: 'grid',
               placeItems: 'center',
+              flexShrink: 0,
             }}
+            aria-hidden
           >
             <Mic size={16} />
           </span>
           <div>
-            <strong style={{ fontSize: 14 }}>Voice review (optional)</strong>
+            <strong style={{ fontSize: 14 }}>Voice review</strong>
             <div className="muted" style={{ fontSize: 12 }}>
-              Demo uses text review as primary
+              Text review is the primary option in this demo.
             </div>
           </div>
-        </button>
+        </div>
 
-        {error && <p style={{ fontSize: 12, color: 'var(--danger)', margin: 0 }}>{error}</p>}
+        {error && <p className="status-note error">{error}</p>}
         {booking && booking.status !== 'completed' && (
           <p className="muted" style={{ fontSize: 12 }}>
-            Agar worker ne complete nahi kiya, submit pe status complete karke review save hoga
-            (demo helper).
+            If the worker has not marked complete yet, submit will complete the booking and save
+            your review.
           </p>
         )}
 
@@ -183,14 +188,6 @@ function ReviewInner() {
           {loading ? 'Submitting…' : 'Submit review'}
         </button>
       </div>
-
-      {bookingId && (
-        <DemoBridge
-          hint="Prefer realistic flow: worker marks complete first, then submit review."
-          workerHref={`/worker/bookings/${bookingId}`}
-          customerHref={`/customer/review?bookingId=${bookingId}`}
-        />
-      )}
     </div>
   )
 }

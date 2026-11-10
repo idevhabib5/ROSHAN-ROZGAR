@@ -4,9 +4,8 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Hammer, Mic, Sparkles, Wind, Wrench, Zap } from 'lucide-react'
 import { BottomNav } from '@/components/BottomNav'
-import { DemoBridge } from '@/components/DemoBridge'
 import { useSession } from '@/components/SessionProvider'
-import { useSpeech } from '@/hooks/useSpeech'
+import { useVoiceInput } from '@/hooks/useVoiceInput'
 import { api } from '@/lib/client'
 import { AREA_KEYS, AREAS } from '@/lib/geo'
 
@@ -25,7 +24,19 @@ const POPULAR = ['F-10', 'F-11', 'G-10', 'G-11', 'G-9', 'I-8', 'BLUE AREA', 'F-8
 export default function CustomerHomePage() {
   const router = useRouter()
   const { session, patch } = useSession()
-  const { supported, listening, transcript, setTranscript, error, start, stop } = useSpeech()
+  const {
+    supported,
+    listening,
+    speaking,
+    transcript,
+    setTranscript,
+    assistantReply,
+    error,
+    transport,
+    providerLabel,
+    start,
+    stop,
+  } = useVoiceInput('customer')
   const [selected, setSelected] = useState('Plumber')
   const [areaKey, setAreaKey] = useState('F-10')
   const [title, setTitle] = useState('Kitchen leakage repair')
@@ -111,10 +122,9 @@ export default function CustomerHomePage() {
     <>
       <div className="screen with-nav">
         <p className="kicker">Customer</p>
-        <h1 className="section-title">Need a helping hand?</h1>
+        <h1 className="section-title">Post a service request</h1>
         <p className="section-sub">
-          Post a job with budget + Islamabad area — nearby available workers get a live alert and
-          send competing offers.
+          Choose a category, area, and budget. Nearby available workers can send offers.
         </p>
 
         <div className="panel-grid">
@@ -137,27 +147,31 @@ export default function CustomerHomePage() {
               ))}
             </div>
 
-            <label className="muted" style={{ fontSize: 12 }}>
-              Job title
+            <div>
+              <label className="form-label" htmlFor="job-title">
+                Job title
+              </label>
               <input
+                id="job-title"
                 className="input"
-                style={{ marginTop: 6 }}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
               />
-            </label>
+            </div>
 
-            <label className="muted" style={{ fontSize: 12 }}>
-              Budget (PKR)
+            <div>
+              <label className="form-label" htmlFor="job-budget">
+                Budget (PKR)
+              </label>
               <input
+                id="job-budget"
                 type="number"
                 className="input"
-                style={{ marginTop: 6 }}
                 min={100}
                 value={budget}
                 onChange={(e) => setBudget(Number(e.target.value))}
               />
-            </label>
+            </div>
 
             <label
               style={{
@@ -208,33 +222,56 @@ export default function CustomerHomePage() {
               type="button"
               className="card-green"
               style={{ width: '100%', textAlign: 'center' }}
-              onClick={() => (listening ? stop() : start())}
+              onClick={() => (listening ? stop() : void start())}
+              aria-label={listening ? 'Stop voice input' : 'Start voice input'}
             >
               <div
                 className={`mic-btn${listening ? ' recording' : ''}`}
                 style={{ width: 72, height: 72, margin: '0 auto 10px' }}
+                aria-hidden
               >
                 <Mic size={28} />
               </div>
-              <strong>Let your voice begin</strong>
+              <strong>Describe the problem</strong>
               <p className="muted" style={{ marginTop: 6, marginBottom: 0 }}>
-                {listening ? 'Listening…' : 'Tap mic — describe the problem'}
+                {listening
+                  ? speaking
+                    ? 'Assistant speaking…'
+                    : `Listening via ${providerLabel}…`
+                  : `Tap the mic for ${providerLabel} speech, or type below`}
               </p>
             </button>
 
-            {!supported && (
-              <p style={{ fontSize: 12, color: 'var(--warning)', margin: 0 }}>
-                STT unsupported — text fallback use karein.
+            {assistantReply && (
+              <p className="status-note">
+                Assistant: {assistantReply}
               </p>
             )}
-            {error && <p style={{ fontSize: 12, color: 'var(--danger)', margin: 0 }}>{error}</p>}
+            {transport && (
+              <p className="muted" style={{ fontSize: 12, margin: 0 }}>
+                Voice mode: {transport}
+              </p>
+            )}
 
-            <textarea
-              className="textarea"
-              value={transcript}
-              onChange={(e) => setTranscript(e.target.value)}
-              placeholder="Kitchen leak, F-10, aaj chahiye…"
-            />
+            {!supported && (
+              <p className="status-note" style={{ background: '#fff8e6' }}>
+                Microphone unavailable. Use the text field instead.
+              </p>
+            )}
+            {error && <p className="status-note error">{error}</p>}
+
+            <div>
+              <label className="form-label" htmlFor="issue-text">
+                Issue details
+              </label>
+              <textarea
+                id="issue-text"
+                className="textarea"
+                value={transcript}
+                onChange={(e) => setTranscript(e.target.value)}
+                placeholder="Kitchen leak, F-10, needed today…"
+              />
+            </div>
 
             <div className="sticky-actions" style={{ marginTop: 0 }}>
               <button
@@ -243,10 +280,10 @@ export default function CustomerHomePage() {
                 disabled={!transcript.trim() || loading}
                 onClick={() => runExtract(transcript.trim())}
               >
-                {loading ? 'Understanding…' : 'AI se Samjhein'}
+                {loading ? 'Understanding…' : 'Understand with AI'}
               </button>
               <button type="button" className="btn btn-ghost" onClick={() => setTranscript(EXAMPLE)}>
-                Demo request
+                Use sample request
               </button>
             </div>
 
@@ -272,9 +309,7 @@ export default function CustomerHomePage() {
               </div>
             )}
 
-            {apiError && (
-              <p style={{ fontSize: 12, color: 'var(--danger)', margin: 0 }}>{apiError}</p>
-            )}
+            {apiError && <p className="status-note error">{apiError}</p>}
 
             <button
               type="button"
@@ -282,14 +317,8 @@ export default function CustomerHomePage() {
               disabled={loading}
               onClick={continueFlow}
             >
-              {loading ? 'Broadcasting…' : 'Find nearby workers'}
+              {loading ? 'Posting…' : 'Find nearby workers'}
             </button>
-
-            <DemoBridge
-              hint="Workers must be Available ON with fresh location. After posting, stay on Finding screen."
-              workerHref="/worker/home"
-              customerHref="/customer/home"
-            />
           </div>
         </div>
       </div>

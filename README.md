@@ -15,6 +15,26 @@ COMSATS AI Web Forge Hackathon MVP — responsive web marketplace connecting nea
 - **AI:** Web Speech + heuristic/OpenAI extract
 - **Geo:** Haversine + bounding-box prefilter (SQLite — not PostGIS)
 
+## Auth (signup / login)
+
+- Pages: [`/signup`](app/signup/page.tsx), [`/login`](app/login/page.tsx)
+- **Email signup/login** works out of the box (stored in SQLite `AuthUser`)
+- **Google / Facebook**: add keys to `.env` then restart:
+
+```env
+AUTH_SECRET=your-long-secret
+AUTH_GOOGLE_ID=...
+AUTH_GOOGLE_SECRET=...
+AUTH_FACEBOOK_ID=...
+AUTH_FACEBOOK_SECRET=...
+AUTH_URL=http://localhost:3000
+```
+
+Google redirect URI: `http://localhost:3000/api/auth/callback/google`  
+Facebook redirect URI: `http://localhost:3000/api/auth/callback/facebook`
+
+After login, pick Worker or Customer on the home screen (demo marketplace IDs still power the booking demo).
+
 ## Quick start (local testing — recommended)
 
 This is the supported way to demo the full inDrive-style flow (API + Socket.IO + dispatch ticker):

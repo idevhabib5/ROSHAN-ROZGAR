@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Banknote, Calendar, Check, Clock, MapPin, User, Wrench } from 'lucide-react'
-import { DemoBridge } from '@/components/DemoBridge'
 import { useSession } from '@/components/SessionProvider'
 import { api } from '@/lib/client'
 
@@ -104,7 +103,7 @@ function BookingInner() {
       const err = e as Error & { code?: string }
       setError(
         err.code === 'WORKER_ENGAGED'
-          ? 'Worker already engaged — server rejected with 409.'
+          ? 'Worker is already booked.'
           : err.message,
       )
     } finally {
@@ -119,10 +118,9 @@ function BookingInner() {
           <div className="icon-ring">
             <Check size={40} strokeWidth={2.5} />
           </div>
-          <h1 className="section-title">You&apos;re all set</h1>
+          <h1 className="section-title">Booking confirmed</h1>
           <p className="section-sub">
-            Booking confirm. Worker is engaged for this slot. Cash on completion — no online
-            payment.
+            Your booking is confirmed. Pay in cash when the work is done.
           </p>
           <div className="card" style={{ textAlign: 'left', marginBottom: 16 }}>
             <div className="muted" style={{ fontSize: 12 }}>
@@ -139,7 +137,7 @@ function BookingInner() {
               className="btn btn-primary"
               onClick={() => router.push(`/customer/review?bookingId=${confirmed.id}`)}
             >
-              After job · How did it go?
+              Leave a review
             </button>
             <button
               type="button"
@@ -150,11 +148,6 @@ function BookingInner() {
             </button>
           </div>
         </div>
-        <DemoBridge
-          hint="Worker timeline pe jaake kaam complete karein, phir review submit karein."
-          workerHref={`/worker/bookings/${confirmed.id}`}
-          customerHref={`/customer/review?bookingId=${confirmed.id}`}
-        />
       </div>
     )
   }
@@ -170,7 +163,7 @@ function BookingInner() {
         >
           <ArrowLeft size={18} />
         </button>
-        <h2>Clear work. Clear price.</h2>
+        <h2>Confirm booking</h2>
       </div>
 
       <div className="content-card stack">
@@ -210,7 +203,7 @@ function BookingInner() {
           <span className="amount">Rs. {summary?.amount ?? '—'}</span>
         </div>
 
-        {error && <p style={{ fontSize: 12, color: 'var(--danger)', margin: 0 }}>{error}</p>}
+        {error && <p className="status-note error">{error}</p>}
 
         <button
           type="button"
@@ -218,7 +211,7 @@ function BookingInner() {
           disabled={!summary || loading}
           onClick={confirm}
         >
-          {loading ? 'Confirming…' : "You're all set — Confirm"}
+          {loading ? 'Confirming…' : "Confirm booking"}
         </button>
       </div>
     </div>

@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Banknote, Clock, MapPin } from 'lucide-react'
-import { DemoBridge } from '@/components/DemoBridge'
 import { useSession } from '@/components/SessionProvider'
 import { useRealtime } from '@/hooks/useRealtime'
 import { api } from '@/lib/client'
@@ -60,7 +59,7 @@ export default function WorkerJobPage() {
 
   useRealtime((event) => {
     if (event === 'offer:accepted') {
-      setStatusNote('Offer accepted — booking confirmed!')
+      setStatusNote('Offer accepted. Booking confirmed.')
       load().catch(() => undefined)
     }
     if (event === 'offer:not_selected') {
@@ -89,7 +88,7 @@ export default function WorkerJobPage() {
         }),
       })
       await load()
-      setStatusNote('Offer submitted — waiting for customer decision.')
+      setStatusNote('Offer submitted. Waiting for the customer.')
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -135,11 +134,11 @@ export default function WorkerJobPage() {
         >
           <ArrowLeft size={18} />
         </button>
-        <div>
+        <div style={{ minWidth: 0, flex: 1 }}>
           <p className="kicker" style={{ marginBottom: 2 }}>
-            Job request details
+            Job opportunity
           </p>
-          <h2 style={{ margin: 0 }}>{req.title || 'New job opportunity'}</h2>
+          <h2 className="page-title">{req.title || 'New job nearby'}</h2>
         </div>
       </div>
 
@@ -187,46 +186,48 @@ export default function WorkerJobPage() {
         </div>
       </div>
 
-      {statusNote && (
-        <div className="card-green" style={{ marginTop: 14, fontSize: 14 }}>
-          {statusNote}
-        </div>
-      )}
+      {statusNote && <p className="status-note" style={{ marginTop: 14 }}>{statusNote}</p>}
 
       {!myQuote && ['searching', 'offers_received', 'open', 'quoted'].includes(req.status) && (
         <div className="content-card stack" style={{ marginTop: 14 }}>
           <h3 style={{ margin: 0, fontSize: 16 }}>Send offer</h3>
-          <label className="muted" style={{ fontSize: 12 }}>
-            Proposed price (PKR)
+          <div>
+            <label className="form-label" htmlFor="offer-amount">
+              Proposed price (PKR)
+            </label>
             <input
+              id="offer-amount"
               type="number"
               className="input"
-              style={{ marginTop: 6 }}
               value={amount}
               min={100}
               onChange={(e) => setAmount(Number(e.target.value))}
             />
-          </label>
-          <label className="muted" style={{ fontSize: 12 }}>
-            Estimated arrival (minutes)
+          </div>
+          <div>
+            <label className="form-label" htmlFor="offer-eta">
+              Estimated arrival (minutes)
+            </label>
             <input
+              id="offer-eta"
               type="number"
               className="input"
-              style={{ marginTop: 6 }}
               value={eta}
               min={5}
               onChange={(e) => setEta(Number(e.target.value))}
             />
-          </label>
-          <label className="muted" style={{ fontSize: 12 }}>
-            Message (optional)
+          </div>
+          <div>
+            <label className="form-label" htmlFor="offer-message">
+              Message (optional)
+            </label>
             <textarea
+              id="offer-message"
               className="textarea"
-              style={{ marginTop: 6 }}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
             />
-          </label>
+          </div>
           <button
             type="button"
             className="btn btn-primary btn-block"
@@ -240,7 +241,7 @@ export default function WorkerJobPage() {
             className="btn btn-outline btn-block"
             onClick={() => router.push('/worker/home')}
           >
-            Decline / back
+            Decline
           </button>
         </div>
       )}
@@ -263,7 +264,7 @@ export default function WorkerJobPage() {
               className="btn btn-primary"
               onClick={() => router.push('/worker/home')}
             >
-              Go to home — open active booking
+              Open active booking
             </button>
           )}
           {myQuote.state === 'not_selected' && (
@@ -274,15 +275,7 @@ export default function WorkerJobPage() {
         </div>
       )}
 
-      {error && (
-        <p style={{ fontSize: 12, color: 'var(--danger)', margin: '10px 0 0' }}>{error}</p>
-      )}
-
-      <DemoBridge
-        hint="After sending offer, switch to Customer → Compare offers → Accept."
-        workerHref={`/worker/jobs/${id}`}
-        customerHref="/customer/home"
-      />
+      {error && <p className="status-note error" style={{ marginTop: 10 }}>{error}</p>}
     </div>
   )
 }

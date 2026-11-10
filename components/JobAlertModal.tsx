@@ -31,7 +31,7 @@ export function JobAlertModal({
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="New job alert">
       <div className="modal-card">
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-          <span className="badge badge-warning">New Job Near You!</span>
+          <span className="badge badge-warning">New job nearby</span>
           <button type="button" className="back-btn" onClick={onClose} aria-label="Close">
             <X size={16} />
           </button>

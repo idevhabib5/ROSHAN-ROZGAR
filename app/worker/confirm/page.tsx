@@ -123,7 +123,7 @@ export default function WorkerConfirmPage() {
       <div className="content-card stack">
         <div style={{ textAlign: 'center' }}>
           <span className="badge badge-success">
-            <Sparkles size={12} /> AI ({profile.provider}) — read aloud
+            <Sparkles size={12} /> AI ()
           </span>
           <p className="section-sub" style={{ marginTop: 12, marginBottom: 0 }}>
             Galat ho to dobara bolain. Missing fields invent nahi kiye jayenge.
@@ -164,7 +164,7 @@ export default function WorkerConfirmPage() {
               ))}
             </div>
             <p className="muted" style={{ marginTop: 8, marginBottom: 0, fontSize: 12 }}>
-              Cash on completion — no online payment in this MVP.
+              Cash on completion. No online payment.
             </p>
           </div>
         )}

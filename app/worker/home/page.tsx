@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Bell, Briefcase, Clock, MapPin, Star } from 'lucide-react'
 import { BottomNav } from '@/components/BottomNav'
-import { DemoBridge } from '@/components/DemoBridge'
 import { JobAlertModal, type JobAlertPayload } from '@/components/JobAlertModal'
 import { useSession } from '@/components/SessionProvider'
 import { useGeolocation } from '@/hooks/useGeolocation'
@@ -103,7 +102,7 @@ export default function WorkerHomePage() {
   const freshness =
     worker?.lastLocationAt || geo.lastSentAt
       ? `Location fresh · ${new Date(worker?.lastLocationAt || geo.lastSentAt!).toLocaleTimeString()}`
-      : 'No fresh location — enable GPS while Available'
+      : 'No recent location. Enable GPS while available.'
 
   return (
     <>
@@ -147,14 +146,14 @@ export default function WorkerHomePage() {
             >
               <div>
                 <strong style={{ fontSize: 16 }}>
-                  Available for Jobs: {worker?.onlinePreference ? 'ON' : 'OFF'}
+                  Available for jobs: {worker?.onlinePreference ? 'On' : 'Off'}
                 </strong>
                 <div className="muted" style={{ marginTop: 4 }}>
                   {worker?.engaged
-                    ? 'Active booking — not bookable for new jobs'
+                    ? 'Active booking. New jobs are paused.'
                     : worker?.onlinePreference
-                      ? 'Eligible for nearby dispatch alerts'
-                      : 'New opportunities paused'}
+                      ? 'You will receive nearby job alerts.'
+                      : 'Job alerts are paused.'}
                 </div>
               </div>
               <div className={`toggle ${worker?.onlinePreference ? 'on' : ''}`} />
@@ -170,7 +169,7 @@ export default function WorkerHomePage() {
               </p>
               {geo.permission === 'denied' && (
                 <p style={{ color: 'var(--danger)', fontSize: 12, margin: '8px 0 0' }}>
-                  Location permission denied — nearby matching needs consent while Available.
+                  Location permission denied. Enable location while available for nearby matching.
                 </p>
               )}
               {geo.error && (
@@ -197,7 +196,7 @@ export default function WorkerHomePage() {
               </div>
               <div className="stat-card">
                 <div className="val" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  {worker?.rating ?? '—'} <Star size={16} fill="#F5B942" color="#F5B942" />
+                  {worker?.rating ?? '—'} <Star size={16} fill="#FFC928" color="#FFC928" />
                 </div>
                 <div className="lbl">{worker?.reviewCount ?? 0} reviews</div>
               </div>
@@ -208,7 +207,7 @@ export default function WorkerHomePage() {
             <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>Job opportunities</h3>
             {opps.length === 0 ? (
               <div className="empty-state" style={{ padding: '24px 16px' }}>
-                No open opportunities. Stay Available ON with a fresh location.
+                No open jobs nearby. Stay available with a fresh location.
               </div>
             ) : (
               opps.map((o) => (
@@ -284,12 +283,6 @@ export default function WorkerHomePage() {
               )}
             </div>
             {error && <p style={{ fontSize: 12, color: 'var(--danger)', margin: 0 }}>{error}</p>}
-
-            <DemoBridge
-              hint="Customer posts job → you get alert → Send Offer with price + ETA."
-              workerHref="/worker/home"
-              customerHref="/customer/home"
-            />
           </div>
         </div>
       </div>

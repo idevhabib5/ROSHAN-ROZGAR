@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Mic, RotateCcw, Square } from 'lucide-react'
 import { useSession } from '@/components/SessionProvider'
-import { useSpeech } from '@/hooks/useSpeech'
+import { useVoiceInput } from '@/hooks/useVoiceInput'
 import { api } from '@/lib/client'
 import { TRADES } from '@/lib/geo'
 
@@ -14,7 +14,19 @@ const EXAMPLE =
 export default function WorkerOnboardingPage() {
   const router = useRouter()
   const { setPendingProfile } = useSession()
-  const { supported, listening, transcript, setTranscript, error, start, stop } = useSpeech()
+  const {
+    supported,
+    listening,
+    speaking,
+    transcript,
+    setTranscript,
+    assistantReply,
+    error,
+    transport,
+    providerLabel,
+    start,
+    stop,
+  } = useVoiceInput('worker')
   const [loading, setLoading] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
   const [hintTrade, setHintTrade] = useState<string | null>(null)
@@ -54,16 +66,15 @@ export default function WorkerOnboardingPage() {
         <button type="button" className="back-btn" onClick={() => router.push('/')} aria-label="Back">
           <ArrowLeft size={18} />
         </button>
-        <h2>Let your voice begin</h2>
+        <h2>Voice profile</h2>
       </div>
 
       <div className="content-card stack">
         <div>
           <p className="kicker">Worker onboarding</p>
-          <h1 className="section-title">Tap the mic, say your name</h1>
+          <h1 className="section-title">Say your name and trade</h1>
           <p className="section-sub">
-            Apna naam, hunar, tajurba, ilaqa aur typical charge awaz mein batayein. Typing form
-            zaroori nahi.
+            Speak your name, skill, experience, area, and typical charge. Typing is optional.
           </p>
         </div>
 
@@ -101,22 +112,38 @@ export default function WorkerOnboardingPage() {
             ))}
           </div>
           <p className="muted" style={{ marginBottom: 16 }}>
-            {listening ? 'Listening… keep talking' : transcript ? 'Ready to extract' : 'Mic ready'}
+            {listening
+              ? speaking
+                ? 'Assistant speaking…'
+                : `Listening via ${providerLabel}…`
+              : transcript
+                ? 'Ready to continue'
+                : `Mic ready (${providerLabel})`}
           </p>
           <button
             type="button"
             className={`mic-btn ${listening ? 'recording' : ''}`}
-            onClick={() => (listening ? stop() : start())}
+            onClick={() => (listening ? stop() : void start())}
             aria-label={listening ? 'Stop recording' : 'Start recording'}
           >
             {listening ? <Square size={32} fill="white" /> : <Mic size={36} />}
           </button>
-          {!supported && (
-            <p style={{ fontSize: 12, color: 'var(--warning)', marginTop: 12 }}>
-              Browser STT unavailable — text fallback use karein.
+          {assistantReply && (
+            <p className="status-note" style={{ marginTop: 12, textAlign: 'left' }}>
+              Assistant: {assistantReply}
             </p>
           )}
-          {error && <p style={{ fontSize: 12, color: 'var(--danger)', marginTop: 8 }}>{error}</p>}
+          {transport && (
+            <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+              Voice mode: {transport}
+            </p>
+          )}
+          {!supported && (
+            <p style={{ fontSize: 12, color: 'var(--warning)', marginTop: 12 }}>
+              Microphone unavailable. Use the text field.
+            </p>
+          )}
+          {error && <p className="status-note error" style={{ marginTop: 8 }}>{error}</p>}
         </div>
 
         <div className="card-soft" style={{ borderStyle: 'dashed', fontSize: 13 }}>
@@ -126,14 +153,20 @@ export default function WorkerOnboardingPage() {
           </p>
         </div>
 
-        <textarea
-          className="textarea"
-          value={transcript}
-          onChange={(e) => setTranscript(e.target.value)}
-          placeholder="Your spoken words appear here…"
-        />
+        <div>
+          <label className="form-label" htmlFor="worker-voice-text">
+            Spoken profile text
+          </label>
+          <textarea
+            id="worker-voice-text"
+            className="textarea"
+            value={transcript}
+            onChange={(e) => setTranscript(e.target.value)}
+            placeholder="Your spoken words appear here…"
+          />
+        </div>
 
-        {apiError && <p style={{ fontSize: 12, color: 'var(--danger)', margin: 0 }}>{apiError}</p>}
+        {apiError && <p className="status-note error">{apiError}</p>}
 
         <div className="sticky-actions" style={{ marginTop: 0 }}>
           <button
@@ -145,7 +178,7 @@ export default function WorkerOnboardingPage() {
             {loading ? 'Understanding…' : 'Continue'}
           </button>
           <button type="button" className="btn btn-ghost" onClick={() => setTranscript(EXAMPLE)}>
-            <RotateCcw size={16} /> Demo voice text
+            <RotateCcw size={16} /> Use sample voice text
           </button>
         </div>
       </div>

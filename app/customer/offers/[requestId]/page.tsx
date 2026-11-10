@@ -3,7 +3,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, BadgeCheck, Clock, MapPin, Star } from 'lucide-react'
-import { DemoBridge } from '@/components/DemoBridge'
 import { useSession } from '@/components/SessionProvider'
 import { usePolling, useRealtime } from '@/hooks/useRealtime'
 import { api } from '@/lib/client'
@@ -109,10 +108,11 @@ export default function CompareOffersPage() {
           type="button"
           className="back-btn"
           onClick={() => router.push(`/customer/dispatch/${requestId}`)}
+          aria-label="Back"
         >
           <ArrowLeft size={18} />
         </button>
-        <h2>Compare worker offers</h2>
+        <h2 className="page-title">Compare offers</h2>
       </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
@@ -129,7 +129,7 @@ export default function CompareOffersPage() {
       </div>
 
       {sorted.length === 0 && (
-        <div className="empty-state">Abhi koi offer nahi — waiting for workers…</div>
+        <div className="empty-state">No offers yet. Waiting for workers.</div>
       )}
 
       <div className="stack">
@@ -171,7 +171,7 @@ export default function CompareOffersPage() {
                 <MapPin size={12} /> ~{o.worker.distanceKm} km · {o.worker.approxArea}
               </span>
               <span className="chip" style={{ padding: '4px 8px' }}>
-                <Star size={12} fill="#F5B942" color="#F5B942" /> {o.worker.rating ?? '—'} (
+                <Star size={12} fill="#FFC928" color="#FFC928" /> {o.worker.rating ?? '—'} (
                 {o.worker.reviewCount})
               </span>
               <span className="chip" style={{ padding: '4px 8px' }}>
@@ -188,7 +188,15 @@ export default function CompareOffersPage() {
             <div className="sticky-actions" style={{ marginTop: 12 }}>
               <button
                 type="button"
-                className="btn btn-outline btn-sm"
+                className="btn btn-primary"
+                disabled={loadingId === o.offerId}
+                onClick={() => accept(o.offerId, o.worker.id)}
+              >
+                {loadingId === o.offerId ? 'Accepting…' : 'Accept offer'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline"
                 onClick={() => {
                   patch({ selectedWorkerId: o.worker.id })
                   router.push(`/customer/workers/${o.worker.id}`)
@@ -196,26 +204,12 @@ export default function CompareOffersPage() {
               >
                 View profile
               </button>
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                disabled={loadingId === o.offerId}
-                onClick={() => accept(o.offerId, o.worker.id)}
-              >
-                {loadingId === o.offerId ? 'Accepting…' : 'Accept offer'}
-              </button>
             </div>
           </div>
         ))}
       </div>
 
-      {error && <p style={{ color: 'var(--danger)', fontSize: 12, marginTop: 12 }}>{error}</p>}
-
-      <DemoBridge
-        hint="Offers live update. Accept exactly one — others get not-selected."
-        workerHref="/worker/home"
-        customerHref={`/customer/offers/${requestId}`}
-      />
+      {error && <p className="status-note error" style={{ marginTop: 12 }}>{error}</p>}
     </div>
   )
 }

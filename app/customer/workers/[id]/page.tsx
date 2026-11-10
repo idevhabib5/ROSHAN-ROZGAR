@@ -109,7 +109,7 @@ export default function WorkerProfilePage() {
               </div>
               <div className="stat-card">
                 <div className="val" style={{ fontSize: 18, display: 'flex', alignItems: 'center', gap: 4 }}>
-                  {worker.rating ?? '—'} <Star size={16} fill="#F5B942" color="#F5B942" />
+                  {worker.rating ?? '—'} <Star size={16} fill="#FFC928" color="#FFC928" />
                 </div>
                 <div className="lbl">{worker.reviewCount} reviews</div>
               </div>
@@ -153,7 +153,7 @@ export default function WorkerProfilePage() {
               What people say
             </h3>
             {worker.reviews.length === 0 && (
-              <div className="empty-state">Abhi reviews nahi — pehla booking ke baad aayenge.</div>
+              <div className="empty-state">No reviews yet.</div>
             )}
             {worker.reviews.map((r) => (
               <div className="card" key={r.id}>

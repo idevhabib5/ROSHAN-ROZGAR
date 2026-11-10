@@ -16,10 +16,10 @@ export function BottomNav({ role }: { role: 'worker' | 'customer' }) {
     },
     {
       href: role === 'customer' ? '/customer/chat' : '/worker/home',
-      label: 'Raabta',
+      label: 'Chat',
       icon: MessageCircle,
     },
-    { href: '/', label: 'Role', icon: User },
+    { href: '/', label: 'Switch', icon: User },
   ]
 
   return (

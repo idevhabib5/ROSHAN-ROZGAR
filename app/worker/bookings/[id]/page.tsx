@@ -3,14 +3,13 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Check, Circle } from 'lucide-react'
-import { DemoBridge } from '@/components/DemoBridge'
 import { api } from '@/lib/client'
 
 const STEPS = ['confirmed', 'in_progress', 'completed'] as const
 const LABELS: Record<string, string> = {
   confirmed: 'Booking confirmed',
   in_progress: 'Work in progress',
-  completed: 'Job well done',
+  completed: 'Completed',
 }
 
 type Booking = {
@@ -83,7 +82,7 @@ export default function WorkerBookingPage() {
           <p className="kicker" style={{ marginBottom: 2 }}>
             Active booking
           </p>
-          <h2 style={{ margin: 0 }}>Job well done path</h2>
+          <h2 style={{ margin: 0 }}>Job progress</h2>
         </div>
       </div>
 
@@ -115,7 +114,7 @@ export default function WorkerBookingPage() {
       <div className="card-green" style={{ marginBottom: 16, fontSize: 14 }}>
         <strong>You&apos;re engaged for this slot</strong>
         <p className="muted" style={{ margin: '6px 0 0', fontSize: 12 }}>
-          Doosri confirmation isi worker ke liye server 409 degi — overlapping bookings blocked.
+          You cannot take overlapping bookings while this job is active.
         </p>
       </div>
 
@@ -181,15 +180,9 @@ export default function WorkerBookingPage() {
           className="btn btn-secondary btn-block"
           onClick={() => router.push('/worker/home')}
         >
-          Home — ab bookable ho sakte hain
+          Back to home
         </button>
       )}
-
-      <DemoBridge
-        hint="Job complete ke baad customer side pe review kholo — How did it go?"
-        workerHref={`/worker/bookings/${id}`}
-        customerHref={`/customer/review?bookingId=${id}`}
-      />
     </div>
   )
 }

@@ -1,4 +1,7 @@
 import { resolveArea, TRADES, type Trade } from '../geo'
+import { geminiJson } from './gemini'
+
+export type AiProvider = 'gemini' | 'openai' | 'heuristic'
 
 export type WorkerProfileExtract = {
   name: string | null
@@ -7,7 +10,7 @@ export type WorkerProfileExtract = {
   serviceArea: string | null
   visitChargePkr: number | null
   missingFields: string[]
-  provider: 'openai' | 'heuristic'
+  provider: AiProvider
   confidence: 'high' | 'medium' | 'low'
 }
 
@@ -20,7 +23,7 @@ export type ServiceRequestExtract = {
   latitude: number | null
   longitude: number | null
   missingFields: string[]
-  provider: 'openai' | 'heuristic'
+  provider: AiProvider
 }
 
 function detectTrade(text: string): Trade | null {
@@ -92,9 +95,17 @@ async function openaiJson<T>(system: string, user: string): Promise<T | null> {
   }
 }
 
+async function llmJson<T>(system: string, user: string): Promise<{ data: T; provider: 'gemini' | 'openai' } | null> {
+  const gemini = await geminiJson<T>(system, user)
+  if (gemini) return { data: gemini, provider: 'gemini' }
+  const openai = await openaiJson<T>(system, user)
+  if (openai) return { data: openai, provider: 'openai' }
+  return null
+}
+
 export async function extractWorkerProfile(transcript: string): Promise<WorkerProfileExtract> {
   const cleaned = transcript.trim()
-  const openai = await openaiJson<{
+  const llm = await llmJson<{
     name?: string | null
     trade?: string | null
     experience_years?: number | null
@@ -105,14 +116,14 @@ export async function extractWorkerProfile(transcript: string): Promise<WorkerPr
     cleaned,
   )
 
-  let name = openai?.name ?? null
-  let trade = (openai?.trade as Trade | undefined) ?? null
-  let experienceYears = openai?.experience_years ?? null
-  let serviceArea = openai?.service_area ?? null
-  let visitChargePkr = openai?.visit_charge_pkr ?? null
-  const provider: 'openai' | 'heuristic' = openai ? 'openai' : 'heuristic'
+  let name = llm?.data.name ?? null
+  let trade = (llm?.data.trade as Trade | undefined) ?? null
+  let experienceYears = llm?.data.experience_years ?? null
+  let serviceArea = llm?.data.service_area ?? null
+  let visitChargePkr = llm?.data.visit_charge_pkr ?? null
+  const provider: AiProvider = llm?.provider ?? 'heuristic'
 
-  if (!openai) {
+  if (!llm) {
     name = extractName(cleaned)
     trade = detectTrade(cleaned)
     experienceYears = extractYears(cleaned)
@@ -154,7 +165,7 @@ export async function extractWorkerProfile(transcript: string): Promise<WorkerPr
 
 export async function extractServiceRequest(transcript: string): Promise<ServiceRequestExtract> {
   const cleaned = transcript.trim()
-  const openai = await openaiJson<{
+  const llm = await llmJson<{
     trade?: string | null
     issue_description?: string | null
     location?: string | null
@@ -165,14 +176,14 @@ export async function extractServiceRequest(transcript: string): Promise<Service
     cleaned,
   )
 
-  let trade = (openai?.trade as Trade | undefined) ?? null
-  let issueDescription = openai?.issue_description ?? null
-  let location = openai?.location ?? null
-  let urgency = openai?.urgency ?? null
-  let preferredTime = openai?.preferred_time ?? null
-  const provider: 'openai' | 'heuristic' = openai ? 'openai' : 'heuristic'
+  let trade = (llm?.data.trade as Trade | undefined) ?? null
+  let issueDescription = llm?.data.issue_description ?? null
+  let location = llm?.data.location ?? null
+  let urgency = llm?.data.urgency ?? null
+  let preferredTime = llm?.data.preferred_time ?? null
+  const provider: AiProvider = llm?.provider ?? 'heuristic'
 
-  if (!openai) {
+  if (!llm) {
     trade = detectTrade(cleaned)
     issueDescription = cleaned.slice(0, 280) || null
     location = /G-1[01]|F-1[01]|I-8|Islamabad/i.test(cleaned)

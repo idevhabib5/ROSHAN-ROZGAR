@@ -2,8 +2,7 @@
 
 import { useCallback, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Radar } from 'lucide-react'
-import { DemoBridge } from '@/components/DemoBridge'
+import { ArrowLeft, Loader2 } from 'lucide-react'
 import { useSession } from '@/components/SessionProvider'
 import { usePolling, useRealtime } from '@/hooks/useRealtime'
 import { api } from '@/lib/client'
@@ -23,6 +22,17 @@ type DispatchStatus = {
     location: string
     budgetPkr: number | null
   }
+}
+
+const PHASE_LABEL: Record<string, string> = {
+  finding: 'Finding nearby workers',
+  workers_notified: 'Workers notified. Waiting for offers.',
+  offers_received: 'Offers received',
+  expanding: 'Expanding search area',
+  no_workers: 'No workers nearby',
+  cancelled: 'Request cancelled',
+  expired: 'Request expired',
+  assigned: 'Worker assigned',
 }
 
 export default function DispatchWaitingPage() {
@@ -85,51 +95,45 @@ export default function DispatchWaitingPage() {
     }
   }
 
-  const phaseLabel: Record<string, string> = {
-    finding: 'Finding nearby workers…',
-    workers_notified: 'Workers notified — waiting for responses',
-    offers_received: 'Offers received',
-    expanding: 'Expanding search area…',
-    no_workers: 'No workers available in current radius',
-    cancelled: 'Request cancelled',
-    expired: 'Request expired',
-    assigned: 'Worker assigned',
-  }
+  const searching = !status || ['finding', 'workers_notified', 'expanding'].includes(status.phase)
 
   return (
     <div className="screen narrow">
       <div className="page-header">
-        <button type="button" className="back-btn" onClick={() => router.push('/customer/home')}>
+        <button
+          type="button"
+          className="back-btn"
+          onClick={() => router.push('/customer/home')}
+          aria-label="Back"
+        >
           <ArrowLeft size={18} />
         </button>
-        <h2>Finding skilled workers near you</h2>
+        <h2 className="page-title">Finding nearby workers</h2>
       </div>
 
       <div className="content-card stack" style={{ textAlign: 'center' }}>
-        <div className="radar-wrap">
-          <div className="radar-ring" />
-          <div className="radar-ring delay" />
-          <div className="radar-core">
-            <Radar size={28} />
-          </div>
+        <div className={`search-status${searching ? ' pulse' : ''}`} aria-hidden>
+          <Loader2 size={24} className={searching ? 'spin' : undefined} />
         </div>
 
-        <strong style={{ fontSize: 18 }}>
-          {phaseLabel[status?.phase || 'finding'] || 'Searching…'}
+        <strong style={{ fontSize: 17 }}>
+          {PHASE_LABEL[status?.phase || 'finding'] || 'Searching'}
         </strong>
         <p className="muted" style={{ margin: 0 }}>
-          {status?.request.title || status?.request.trade} · {status?.request.location}
-          {status?.request.budgetPkr != null ? ` · Budget Rs. ${status.request.budgetPkr}` : ''}
+          {[status?.request.title || status?.request.trade, status?.request.location]
+            .filter(Boolean)
+            .join(' · ')}
+          {status?.request.budgetPkr != null ? ` · Rs. ${status.request.budgetPkr}` : ''}
         </p>
 
         <div className="stat-grid" style={{ marginTop: 8 }}>
           <div className="stat-card">
-            <div className="val">{status?.currentRadiusKm ?? '—'} km</div>
-            <div className="lbl">Search radius</div>
+            <div className="val">{status?.currentRadiusKm ?? '–'} km</div>
+            <div className="lbl">Radius</div>
           </div>
           <div className="stat-card">
             <div className="val">{status?.notifiedCount ?? 0}</div>
-            <div className="lbl">Workers notified</div>
+            <div className="lbl">Notified</div>
           </div>
           <div className="stat-card">
             <div className="val">{status?.offerCount ?? 0}</div>
@@ -139,22 +143,22 @@ export default function DispatchWaitingPage() {
 
         {status?.phase === 'no_workers' && (
           <div className="empty-state" style={{ padding: 16 }}>
-            Is radius mein koi available worker nahi. Retry karein ya baad mein try karein.
+            No available workers in this area. Retry or try a different time.
           </div>
         )}
 
-        {error && <p style={{ color: 'var(--danger)', fontSize: 12 }}>{error}</p>}
+        {error && <p className="status-note error">{error}</p>}
 
         <div className="sticky-actions" style={{ marginTop: 8 }}>
-          {status?.offerCount ? (
+          {(status?.offerCount ?? 0) > 0 && (
             <button
               type="button"
               className="btn btn-primary"
               onClick={() => router.push(`/customer/offers/${requestId}`)}
             >
-              Compare offers
+              View offers
             </button>
-          ) : null}
+          )}
           {(status?.phase === 'no_workers' || status?.phase === 'expired') && (
             <button type="button" className="btn btn-secondary" disabled={loading} onClick={retry}>
               Retry search
@@ -165,12 +169,6 @@ export default function DispatchWaitingPage() {
           </button>
         </div>
       </div>
-
-      <DemoBridge
-        hint="Open as Worker → turn Available ON → accept location → Send Offer on the alert."
-        workerHref="/worker/home"
-        customerHref={`/customer/dispatch/${requestId}`}
-      />
     </div>
   )
 }

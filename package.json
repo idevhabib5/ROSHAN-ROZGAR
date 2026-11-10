@@ -19,9 +19,11 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@google/genai": "^3.0.0",
     "@prisma/client": "^6.19.0",
     "lucide-react": "^0.511.0",
     "next": "^15.5.4",
+    "next-auth": "^5.0.0-beta.32",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "socket.io": "^4.8.4",
@@ -31,6 +33,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.7",
     "@tailwindcss/postcss": "^4.1.13",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.20.5",
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter, Noto_Nastaliq_Urdu } from 'next/font/google'
+import { AuthProvider } from '@/components/AuthProvider'
 import { SessionProvider } from '@/components/SessionProvider'
 import { AppShell } from '@/components/AppShell'
 import { SiteHeader } from '@/components/SiteHeader'
@@ -20,7 +21,7 @@ const urdu = Noto_Nastaliq_Urdu({
 
 export const metadata: Metadata = {
   title: 'Roshan Rozgar',
-  description: 'Ghar ke Kaam ke Liye Bharosemand Hunarmand — Hackathon MVP',
+  description: 'Trusted nearby tradespeople for home services in Islamabad.',
   icons: { icon: '/favicon.svg' },
 }
 
@@ -28,12 +29,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} ${urdu.variable}`}>
       <body className={inter.className}>
-        <SessionProvider>
-          <AppShell>
-            <SiteHeader />
-            <main className="app-main">{children}</main>
-          </AppShell>
-        </SessionProvider>
+        <AuthProvider>
+          <SessionProvider>
+            <AppShell>
+              <SiteHeader />
+              <main className="app-main">{children}</main>
+            </AppShell>
+          </SessionProvider>
+        </AuthProvider>
       </body>
     </html>
   )
