@@ -63,7 +63,21 @@ export async function api<T>(
   headers.set('x-demo-worker-id', session.workerId)
   headers.set('x-demo-customer-id', session.customerId)
 
-  const res = await fetch(path, { ...init, headers })
+  const method = (init?.method || 'GET').toUpperCase()
+  if (method === 'GET' || method === 'HEAD') {
+    headers.delete('Content-Type')
+  }
+
+  let res: Response
+  try {
+    res = await fetch(path, { ...init, headers })
+  } catch (e) {
+    throw Object.assign(new Error((e as Error).message || 'Failed to fetch'), {
+      status: 0,
+      code: 'NETWORK',
+    })
+  }
+
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
     throw Object.assign(new Error(data.error || 'Request failed'), {

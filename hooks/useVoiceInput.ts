@@ -1,15 +1,36 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useGeminiSpeech } from '@/hooks/useGeminiSpeech'
 import { useSpeech } from '@/hooks/useSpeech'
 
-type Mode = 'customer' | 'worker'
+type Mode = 'customer' | 'worker' | 'customerProfile'
 
-/** Prefer Gemini speech-to-speech; fall back to browser Web Speech. */
-export function useVoiceInput(mode: Mode = 'customer') {
-  const gemini = useGeminiSpeech(mode)
-  const browser = useSpeech()
+/** Prefer Roshan Assistant (Gemini) speech; fall back to browser Web Speech. */
+export function useVoiceInput(
+  mode: Mode = 'customer',
+  options?: { onSpeechComplete?: (transcript: string) => void },
+) {
+  const onCompleteRef = useRef(options?.onSpeechComplete)
+  const lastCompleteRef = useRef({ text: '', at: 0 })
+  onCompleteRef.current = options?.onSpeechComplete
+
+  const handleComplete = useCallback((text: string) => {
+    const trimmed = text.trim()
+    if (!trimmed) return
+    const now = Date.now()
+    if (
+      lastCompleteRef.current.text === trimmed &&
+      now - lastCompleteRef.current.at < 1500
+    ) {
+      return
+    }
+    lastCompleteRef.current = { text: trimmed, at: now }
+    onCompleteRef.current?.(trimmed)
+  }, [])
+
+  const gemini = useGeminiSpeech(mode, { onSpeechComplete: handleComplete })
+  const browser = useSpeech({ onSpeechComplete: handleComplete })
   const [preferGemini, setPreferGemini] = useState(true)
 
   useEffect(() => {
@@ -47,7 +68,7 @@ export function useVoiceInput(mode: Mode = 'customer') {
     assistantReply: gemini.assistantReply,
     error: gemini.error || browser.error,
     transport: gemini.transport || (!preferGemini ? ('browser' as const) : null),
-    providerLabel: usingGemini ? 'Gemini' : 'Browser',
+    providerLabel: usingGemini ? 'Roshan Assistant' : 'Browser',
     start,
     stop,
     speak: usingGemini ? gemini.speak : browser.speak,

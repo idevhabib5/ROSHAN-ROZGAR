@@ -159,7 +159,9 @@ function ReviewInner() {
             className="btn btn-primary btn-block"
             disabled={loading || !canReview}
             onClick={submit}
-            title={!canReview ? 'Available only after job completion' : undefined}
+            aria-label={
+              !canReview ? 'Submit review — available only after job completion' : 'Submit review'
+            }
           >
             {loading ? 'Submitting…' : 'Submit review'}
           </button>

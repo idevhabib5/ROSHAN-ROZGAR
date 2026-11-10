@@ -9,19 +9,33 @@ import { friendlyError } from '@/lib/ui/errors'
 
 type Mode = 'login' | 'signup'
 
-export function AuthForm({ mode }: { mode: Mode }) {
+type SocialProviders = { google: boolean; facebook: boolean }
+
+export function AuthForm({
+  mode,
+  initialProviders = { google: false, facebook: false },
+}: {
+  mode: Mode
+  initialProviders?: SocialProviders
+}) {
   const router = useRouter()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [providers, setProviders] = useState({ google: false, facebook: false })
+  const [providers, setProviders] = useState<SocialProviders>(initialProviders)
 
   useEffect(() => {
+    // NextAuth's /api/auth/providers returns provider objects when configured.
     fetch('/api/auth/providers')
       .then((r) => r.json())
-      .then((d) => setProviders({ google: !!d.google, facebook: !!d.facebook }))
+      .then((d) =>
+        setProviders({
+          google: Boolean(d?.google),
+          facebook: Boolean(d?.facebook),
+        }),
+      )
       .catch(() => undefined)
   }, [])
 
@@ -47,7 +61,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         )
         return
       }
-      router.push('/')
+      router.push('/choose-role')
       router.refresh()
     } catch (e) {
       setError(friendlyError(e, 'Something went wrong. Try again.'))
@@ -59,7 +73,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const social = async (provider: 'google' | 'facebook') => {
     setLoading(true)
     setError(null)
-    await signIn(provider, { callbackUrl: '/' })
+    await signIn(provider, { callbackUrl: '/choose-role' })
   }
 
   return (
@@ -69,8 +83,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
         <h1 className="section-title">{mode === 'signup' ? 'Sign up' : 'Log in'}</h1>
         <p className="section-sub">
           {mode === 'signup'
-            ? 'Use Google, Facebook, or email. Then pick worker or customer on the home screen.'
-            : 'Sign in with Google, Facebook, or email.'}
+            ? 'Use Google, Facebook, or email. Next: a short role form, then Roshan Assistant collects your details by voice.'
+            : 'Sign in, pick worker or customer on a short form, then Roshan Assistant helps finish your profile.'}
         </p>
       </div>
 
@@ -80,7 +94,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
           className="btn btn-outline btn-block social-btn"
           disabled={loading || !providers.google}
           onClick={() => social('google')}
-          title={!providers.google ? 'Add AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET in .env' : undefined}
+          aria-label={
+            !providers.google
+              ? 'Google sign-in unavailable. Add OAuth keys in environment.'
+              : 'Continue with Google'
+          }
         >
           <GoogleIcon />
           Continue with Google
@@ -90,14 +108,16 @@ export function AuthForm({ mode }: { mode: Mode }) {
           className="btn btn-outline btn-block social-btn"
           disabled={loading || !providers.facebook}
           onClick={() => social('facebook')}
-          title={
-            !providers.facebook ? 'Add AUTH_FACEBOOK_ID / AUTH_FACEBOOK_SECRET in .env' : undefined
+          aria-label={
+            !providers.facebook
+              ? 'Facebook sign-in unavailable. Add OAuth keys in environment.'
+              : 'Continue with Facebook'
           }
         >
           <Facebook size={18} color="#1877F2" />
           Continue with Facebook
         </button>
-        {(!providers.google || !providers.facebook) && (
+        {!providers.google && !providers.facebook && (
           <p className="muted" style={{ fontSize: 12, margin: 0 }}>
             Social login needs OAuth keys in `.env`. Email works now.
           </p>

@@ -21,7 +21,7 @@ export function BottomNav({ role }: { role: 'worker' | 'customer' }) {
           { href: '/customer/home', label: 'Request', icon: Home, match: '/customer/home' },
           { href: '/customer/workers', label: 'Workers', icon: Briefcase, match: '/customer/workers' },
           { href: '/customer/chat', label: 'Messages', icon: MessageCircle, match: '/customer/chat' },
-          { href: '/', label: 'Roles', icon: UserRound, match: '/', exact: true },
+          { href: '/choose-role', label: 'Role', icon: UserRound, match: '/choose-role' },
         ]
       : [
           { href: '/worker/home', label: 'Home', icon: Home, match: '/worker/home', exact: true },
@@ -37,7 +37,7 @@ export function BottomNav({ role }: { role: 'worker' | 'customer' }) {
             icon: UserRound,
             match: '/worker/onboarding',
           },
-          { href: '/', label: 'Roles', icon: UserRound, match: '/', exact: true },
+          { href: '/choose-role', label: 'Role', icon: UserRound, match: '/choose-role' },
         ]
 
   return (

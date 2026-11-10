@@ -534,36 +534,52 @@ a {
   min-height: 240px;
   border-radius: var(--radius-lg);
   overflow: hidden;
-  background: linear-gradient(155deg, #0a6b45 0%, #087f4f 48%, #075c3d 100%);
+  background: #004d3b;
   box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding: 22px;
 }
 
 @media (min-width: 900px) {
   .landing-hero {
     min-height: 420px;
-    padding: 28px;
   }
 }
 
-.landing-hero::before {
-  content: "";
+.landing-hero-photo {
   position: absolute;
   inset: 0;
-  background-image:
-    radial-gradient(circle at 18% 22%, rgba(255, 255, 255, 0.18) 0 2px, transparent 3px),
-    radial-gradient(circle at 82% 18%, rgba(255, 255, 255, 0.12) 0 18px, transparent 19px),
-    radial-gradient(circle at 70% 70%, rgba(255, 255, 255, 0.08) 0 40px, transparent 41px);
-  background-size: 28px 28px, auto, auto;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 30%;
+}
+
+.landing-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(0, 77, 59, 0.15) 0%, rgba(0, 77, 59, 0.35) 45%, rgba(0, 45, 34, 0.82) 100%),
+    linear-gradient(135deg, rgba(0, 107, 70, 0.25), transparent 55%);
   pointer-events: none;
 }
 
-.landing-hero > * {
+.landing-hero-content {
   position: relative;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 22px;
+  min-height: inherit;
+}
+
+@media (min-width: 900px) {
+  .landing-hero-content {
+    padding: 28px;
+  }
 }
 
 .hero-pill {
@@ -1429,15 +1445,46 @@ a {
 }
 
 .kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  display: block;
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--primary);
   margin-bottom: 8px;
+}
+
+.worker-identity-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.worker-identity-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.worker-identity-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.worker-identity-name {
+  display: block;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  overflow-wrap: anywhere;
 }
 
 .empty-state,
@@ -1654,6 +1701,89 @@ a {
   margin: 0;
   max-width: none;
   width: 100%;
+}
+
+.landing-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.landing-cta-row .btn {
+  min-width: 140px;
+}
+
+.role-choice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.role-choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 14px 14px;
+  border-radius: 14px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-card, #fff);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.role-choice:hover {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+}
+
+.role-choice.selected {
+  border-color: var(--primary);
+  background: var(--primary-soft, #eaf8f0);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 25%, transparent);
+}
+
+.role-choice-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--primary-soft, #eaf8f0);
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.role-choice-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.role-choice-copy strong {
+  font-size: 15px;
+  color: var(--text);
+}
+
+.role-choice-copy span {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.role-choice-radio {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+}
+
+.role-choice.selected .role-choice-radio {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 4px var(--primary);
 }
 
 .auth-switch {

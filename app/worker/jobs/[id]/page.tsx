@@ -289,7 +289,11 @@ export default function WorkerJobPage() {
             className="btn btn-primary btn-block"
             disabled={!canSendOffer || loading}
             onClick={sendOffer}
-            title={!canSendOffer ? 'Enter a price of at least Rs. 100 and ETA of 5+ minutes' : undefined}
+            aria-label={
+              !canSendOffer
+                ? 'Send offer — enter a price of at least Rs. 100 and ETA of 5+ minutes'
+                : 'Send offer'
+            }
           >
             {loading ? 'Sending…' : 'Send offer'}
           </button>

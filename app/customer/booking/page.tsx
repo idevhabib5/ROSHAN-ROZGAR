@@ -100,7 +100,7 @@ function BookingInner() {
         }),
       })
       patch({ bookingId: booking.id })
-      setConfirmed({ id: booking.id, reference: `RR-${booking.id.slice(-6).toUpperCase()}` })
+      router.push(`/customer/payment?bookingId=${booking.id}`)
     } catch (e) {
       const err = e as Error & { code?: string }
       setError(
@@ -123,7 +123,7 @@ function BookingInner() {
           </div>
           <h1 className="section-title">Booking confirmed</h1>
           <p className="section-sub">
-            Your booking is confirmed. Pay in cash when the work is done.
+            Next step: pay online with Stripe, or choose cash on completion.
           </p>
           <div className="card" style={{ textAlign: 'left', marginBottom: 16 }}>
             <div className="muted" style={{ fontSize: 12 }}>
@@ -138,16 +138,16 @@ function BookingInner() {
             <button
               type="button"
               className="btn btn-primary"
-              onClick={() => router.push(`/customer/review?bookingId=${confirmed.id}`)}
+              onClick={() => router.push(`/customer/payment?bookingId=${confirmed.id}`)}
             >
-              Leave a review
+              Continue to payment
             </button>
             <button
               type="button"
               className="btn btn-outline"
-              onClick={() => router.push(`/worker/bookings/${confirmed.id}`)}
+              onClick={() => router.push(`/customer/review?bookingId=${confirmed.id}`)}
             >
-              Worker: mark complete
+              Leave a review
             </button>
           </div>
         </div>
@@ -204,7 +204,7 @@ function BookingInner() {
         )}
 
         <div className="price-callout">
-          <span className="muted">You pay in cash when work is done</span>
+          <span className="muted">Confirm booking, then pay with Stripe</span>
           <span className="amount">Rs. {summary?.amount ?? '—'}</span>
         </div>
 
@@ -216,7 +216,7 @@ function BookingInner() {
           disabled={!summary || loading}
           onClick={confirm}
         >
-          {loading ? 'Confirming…' : "Confirm booking"}
+          {loading ? 'Confirming…' : 'Confirm & continue to payment'}
         </button>
       </div>
     </div>

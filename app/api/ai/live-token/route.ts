@@ -7,9 +7,21 @@ Help them describe a home service need (plumber, electrician, AC technician, car
 Ask briefly for trade, area, urgency, and issue. Keep replies short and spoken-friendly.
 Roman Urdu or English is fine. No payments online — cash on completion.`
 
+const CUSTOMER_PROFILE_SYSTEM = `You are Roshan Rozgar voice assistant for customer signup in Islamabad.
+Collect only: full name and home area/sector (e.g. F-10, G-11).
+If anything is missing, ask one short follow-up question. Keep replies short and spoken-friendly.
+Roman Urdu or English is fine.`
+
 const WORKER_SYSTEM = `You are Roshan Rozgar voice assistant for worker onboarding in Islamabad.
-Collect name, trade, years of experience, service area, and typical visit charge.
+Collect name, trade, years of experience, service area, and typical visit charge in PKR.
+If any field is missing, ask only for what is missing — one short question at a time.
 Keep replies short and spoken-friendly. Roman Urdu or English is fine.`
+
+function resolveMode(raw?: string) {
+  if (raw === 'worker') return 'worker' as const
+  if (raw === 'customerProfile') return 'customerProfile' as const
+  return 'customer' as const
+}
 
 export async function POST(req: Request) {
   if (!geminiConfigured()) {
@@ -17,9 +29,14 @@ export async function POST(req: Request) {
   }
 
   const body = (await req.json().catch(() => ({}))) as { mode?: string }
-  const mode = body.mode === 'worker' ? 'worker' : 'customer'
+  const mode = resolveMode(body.mode)
   const model = geminiLiveModel()
-  const systemInstruction = mode === 'worker' ? WORKER_SYSTEM : CUSTOMER_SYSTEM
+  const systemInstruction =
+    mode === 'worker'
+      ? WORKER_SYSTEM
+      : mode === 'customerProfile'
+        ? CUSTOMER_PROFILE_SYSTEM
+        : CUSTOMER_SYSTEM
 
   try {
     const ai = geminiClient('v1alpha')

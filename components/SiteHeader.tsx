@@ -2,20 +2,20 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { signOut, useSession as useAuthSession } from 'next-auth/react'
 import { Menu, X } from 'lucide-react'
 import { useSession } from '@/components/SessionProvider'
-import { DEMO_IDS } from '@/lib/session'
 
 export function SiteHeader() {
   const pathname = usePathname()
-  const router = useRouter()
-  const { session, patch } = useSession()
+  const { session } = useSession()
   const { data: auth } = useAuthSession()
   const [menuOpen, setMenuOpen] = useState(false)
   const isWelcome = pathname === '/'
-  const isAuthPage = pathname === '/login' || pathname === '/signup'
+  const isAuthPage =
+    pathname === '/login' || pathname === '/signup' || pathname === '/choose-role'
+  const showAppChrome = !isWelcome && !isAuthPage
 
   const workerLinks = [
     { href: '/worker/home', label: 'Jobs' },
@@ -51,38 +51,12 @@ export function SiteHeader() {
     }
   }, [menuOpen])
 
-  const switchToWorker = () => {
-    patch({
-      role: 'worker',
-      workerId: session.workerId || DEMO_IDS.workerAli,
-    })
-    setMenuOpen(false)
-    router.push('/worker/home')
-  }
-
-  const switchToCustomer = () => {
-    patch({
-      role: 'customer',
-      customerId: session.customerId || DEMO_IDS.customerAhmed,
-    })
-    setMenuOpen(false)
-    router.push('/customer/home')
-  }
-
   const navBody = (
     <>
       {auth?.user && (
-        <span className="role-pill" title={auth.user.email || ''}>
-          {auth.user.name || auth.user.email}
-        </span>
+        <span className="role-pill">{auth.user.name || auth.user.email}</span>
       )}
-      {session.role && (
-        <span className="role-pill">
-          {session.role === 'worker' ? 'Worker mode' : 'Customer mode'}
-        </span>
-      )}
-      {!isWelcome &&
-        !isAuthPage &&
+      {showAppChrome &&
         links.map((l) => (
           <Link
             key={l.href}
@@ -93,35 +67,10 @@ export function SiteHeader() {
             {l.label}
           </Link>
         ))}
-      {!isWelcome && !isAuthPage && session.role === 'customer' && (
-        <button
-          type="button"
-          className="site-nav-link site-nav-btn"
-          onClick={switchToWorker}
-          aria-label="Switch to worker mode"
-        >
-          Worker
-        </button>
-      )}
-      {!isWelcome && !isAuthPage && session.role === 'worker' && (
-        <button
-          type="button"
-          className="site-nav-link site-nav-btn"
-          onClick={switchToCustomer}
-          aria-label="Switch to customer mode"
-        >
-          Customer
-        </button>
-      )}
-      {!isWelcome && !isAuthPage && !session.role && (
-        <>
-          <button type="button" className="site-nav-link site-nav-btn" onClick={switchToWorker}>
-            Worker
-          </button>
-          <button type="button" className="site-nav-link site-nav-btn" onClick={switchToCustomer}>
-            Customer
-          </button>
-        </>
+      {showAppChrome && (
+        <Link href="/choose-role" className="site-nav-link" onClick={() => setMenuOpen(false)}>
+          Switch role
+        </Link>
       )}
       {!auth?.user && !isAuthPage && (
         <>
@@ -148,11 +97,6 @@ export function SiteHeader() {
         >
           Log out
         </button>
-      )}
-      {!isWelcome && !isAuthPage && (
-        <Link href="/" className="site-nav-link" onClick={() => setMenuOpen(false)}>
-          Roles
-        </Link>
       )}
       {isAuthPage && (
         <Link href="/" className="site-nav-link" onClick={() => setMenuOpen(false)}>
@@ -197,11 +141,7 @@ export function SiteHeader() {
       </div>
 
       {menuOpen && (
-        <div
-          className="mobile-nav-backdrop"
-          onClick={() => setMenuOpen(false)}
-          aria-hidden
-        />
+        <div className="mobile-nav-backdrop" onClick={() => setMenuOpen(false)} aria-hidden />
       )}
       <nav
         id="mobile-nav"

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { auth } from '@/auth'
 import { prisma } from '@/lib/db'
 import { distanceKm, resolveArea, TRADES } from '@/lib/geo'
 import { ACTIVE_BOOKING_STATUSES, getWorkerTrust } from '@/lib/booking'
@@ -11,7 +12,10 @@ const createSchema = z.object({
   serviceArea: z.string().min(2).max(120),
   visitChargePkr: z.number().int().min(100).max(100000),
   onboardingMethod: z.string().default('voice'),
-  photoUrl: z.string().url().optional().nullable(),
+  photoUrl: z
+    .union([z.string().url(), z.literal(''), z.null()])
+    .optional()
+    .transform((v) => (v ? v : null)),
   onlinePreference: z.boolean().optional(),
 })
 
@@ -19,21 +23,40 @@ export async function POST(req: Request) {
   try {
     const body = createSchema.parse(await req.json())
     const area = resolveArea(body.serviceArea)
-    const worker = await prisma.worker.create({
-      data: {
-        displayName: body.displayName,
-        trade: body.trade,
-        experienceYears: body.experienceYears,
-        serviceArea: area.label,
-        latitude: area.latitude + Math.random() * 0.006,
-        longitude: area.longitude + Math.random() * 0.006,
-        visitChargePkr: body.visitChargePkr,
-        onboardingMethod: body.onboardingMethod,
-        photoUrl: body.photoUrl || null,
-        onlinePreference: body.onlinePreference ?? true,
-      },
-    })
-    return jsonOk(worker, 201)
+    const session = await auth()
+    const photoUrl = body.photoUrl || session?.user?.image || null
+    const authRow = session?.user?.id
+      ? await prisma.authUser.findUnique({ where: { id: session.user.id } })
+      : null
+
+    const data = {
+      displayName: body.displayName,
+      trade: body.trade,
+      experienceYears: body.experienceYears,
+      serviceArea: area.label,
+      latitude: area.latitude + Math.random() * 0.006,
+      longitude: area.longitude + Math.random() * 0.006,
+      visitChargePkr: body.visitChargePkr,
+      onboardingMethod: body.onboardingMethod,
+      photoUrl,
+      onlinePreference: body.onlinePreference ?? true,
+    }
+
+    const worker = authRow?.workerId
+      ? await prisma.worker.update({ where: { id: authRow.workerId }, data })
+      : await prisma.worker.create({ data })
+
+    if (session?.user?.id) {
+      await prisma.authUser.update({
+        where: { id: session.user.id },
+        data: {
+          preferredRole: 'worker',
+          workerId: worker.id,
+          name: body.displayName,
+        },
+      })
+    }
+    return jsonOk(worker, authRow?.workerId ? 200 : 201)
   } catch (err) {
     return handleRouteError(err)
   }

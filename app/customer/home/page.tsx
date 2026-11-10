@@ -344,7 +344,11 @@ export default function CustomerHomePage() {
               className="btn btn-primary btn-block"
               disabled={!canPost || loading}
               onClick={continueFlow}
-              title={!canPost ? 'Add a title or issue details, service, area, and budget' : undefined}
+              aria-label={
+                !canPost
+                  ? 'Find nearby workers — add a title or issue details, service, area, and budget first'
+                  : 'Find nearby workers'
+              }
             >
               {loading ? 'Posting request…' : 'Find nearby workers'}
             </button>

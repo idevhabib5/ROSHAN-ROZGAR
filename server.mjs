@@ -1,8 +1,18 @@
 import { createServer } from 'node:http'
 import { networkInterfaces } from 'node:os'
-import { parse } from 'node:url'
+import { loadEnvFile } from 'node:process'
 import next from 'next'
 import { Server } from 'socket.io'
+import { existsSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+// Ensure Auth.js / Prisma see .env when running via custom Node server.
+try {
+  const envPath = resolve(process.cwd(), '.env')
+  if (existsSync(envPath)) loadEnvFile(envPath)
+} catch {
+  // Older Node without loadEnvFile — Next still loads .env during prepare().
+}
 
 const dev = process.env.NODE_ENV !== 'production'
 const port = Number(process.env.PORT || 3000)
@@ -17,12 +27,23 @@ await app.prepare()
 
 const httpServer = createServer(async (req, res) => {
   try {
-    const parsedUrl = parse(req.url, true)
+    const rawUrl = req.url || '/'
+    const base = `http://${req.headers.host || `${nextHostname}:${port}`}`
+    const url = new URL(rawUrl, base)
+    const parsedUrl = {
+      pathname: url.pathname,
+      query: Object.fromEntries(url.searchParams.entries()),
+      path: rawUrl,
+      href: rawUrl,
+      search: url.search,
+    }
     await handle(req, res, parsedUrl)
   } catch (err) {
-    console.error('Error handling', req.url, err)
-    res.statusCode = 500
-    res.end('internal server error')
+    console.error('Error handling', req.method, req.url, err)
+    if (!res.headersSent) {
+      res.statusCode = 500
+      res.end('internal server error')
+    }
   }
 })
 

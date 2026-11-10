@@ -86,7 +86,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (account?.provider === 'google' || account?.provider === 'facebook') {
         const email = user.email?.toLowerCase()
         if (!email) return false
-        await prisma.authUser.upsert({
+        const row = await prisma.authUser.upsert({
           where: { email },
           update: {
             name: user.name || undefined,
@@ -102,6 +102,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             emailVerified: new Date(),
           },
         })
+        // Prefer our AuthUser id over the provider subject in the JWT.
+        user.id = row.id
       }
       return true
     },

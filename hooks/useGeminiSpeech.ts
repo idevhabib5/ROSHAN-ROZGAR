@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { GoogleGenAI, Modality } from '@google/genai'
 
-type Mode = 'customer' | 'worker'
+type Mode = 'customer' | 'worker' | 'customerProfile'
 
 function floatTo16BitPCM(input: Float32Array) {
   const out = new Int16Array(input.length)
@@ -40,7 +40,10 @@ function base64ToInt16(b64: string) {
   return new Int16Array(bytes.buffer)
 }
 
-export function useGeminiSpeech(mode: Mode = 'customer') {
+export function useGeminiSpeech(
+  mode: Mode = 'customer',
+  options?: { onSpeechComplete?: (transcript: string) => void },
+) {
   const [supported, setSupported] = useState(false)
   const [geminiReady, setGeminiReady] = useState(false)
   const [listening, setListening] = useState(false)
@@ -58,6 +61,10 @@ export function useGeminiSpeech(mode: Mode = 'customer') {
   const chunksRef = useRef<Blob[]>([])
   const nextPlayTimeRef = useRef(0)
   const transcriptRef = useRef('')
+  const onCompleteRef = useRef(options?.onSpeechComplete)
+  const transportRef = useRef(transport)
+  onCompleteRef.current = options?.onSpeechComplete
+  transportRef.current = transport
 
   useEffect(() => {
     setSupported(typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia)
@@ -112,18 +119,26 @@ export function useGeminiSpeech(mode: Mode = 'customer') {
   }, [])
 
   const stop = useCallback(() => {
+    const wasLive = transportRef.current === 'live'
+    const hadRecorder =
+      mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive'
     try {
       sessionRef.current?.close()
     } catch {
       /* ignore */
     }
     sessionRef.current = null
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop()
+    if (hadRecorder) {
+      mediaRecorderRef.current?.stop()
     }
     mediaRecorderRef.current = null
     stopAudioGraph()
     setListening(false)
+    // Live sessions finalize immediately; turn-based fires from recorder.onstop.
+    if (wasLive && !hadRecorder) {
+      const text = transcriptRef.current.trim()
+      if (text) onCompleteRef.current?.(text)
+    }
   }, [stopAudioGraph])
 
   const startTurnBased = useCallback(async () => {
@@ -154,10 +169,12 @@ export function useGeminiSpeech(mode: Mode = 'customer') {
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Speech turn failed')
-        setTranscript(data.transcript)
-        transcriptRef.current = data.transcript
+        const text = String(data.transcript || '').trim()
+        setTranscript(text)
+        transcriptRef.current = text
         setAssistantReply(data.reply || '')
-        speakBrowser(data.reply || 'Samajh gaya.')
+        if (text) onCompleteRef.current?.(text)
+        else speakBrowser(data.reply || 'Dobara boliye, please.')
       } catch (e) {
         setError((e as Error).message)
       } finally {
@@ -276,7 +293,7 @@ export function useGeminiSpeech(mode: Mode = 'customer') {
     }
 
     if (!geminiReady) {
-      setError('Gemini is not configured on the server.')
+      setError('Roshan Assistant is not configured on the server.')
       return false
     }
 
@@ -288,7 +305,7 @@ export function useGeminiSpeech(mode: Mode = 'customer') {
         await startTurnBased()
         return true
       } catch (e) {
-        setError((e as Error).message || 'Could not start Gemini speech')
+        setError((e as Error).message || 'Could not start Roshan Assistant speech')
         setListening(false)
         return false
       }

@@ -10,6 +10,7 @@ import { useGeolocation } from '@/hooks/useGeolocation'
 import { usePolling, useRealtime } from '@/hooks/useRealtime'
 import { api } from '@/lib/client'
 import { DEMO_IDS } from '@/lib/session'
+import { friendlyError } from '@/lib/ui/errors'
 
 type Worker = {
   id: string
@@ -52,20 +53,37 @@ export default function WorkerHomePage() {
   })
 
   const load = useCallback(async () => {
+    if (!session.workerId) return
     try {
-      const w = await api<Worker>(`/api/workers/${session.workerId}`)
-      setWorker(w)
-      const inbox = await api<{ opportunities: Opportunity[] }>('/api/workers/me/opportunities')
-      setOpps(inbox.opportunities)
-      const bookings = await api<{ bookings: { id: string; status: string }[] }>(
-        `/api/bookings?workerId=${session.workerId}`,
-      )
-      setActiveBooking(
-        bookings.bookings.find((b) => b.status === 'confirmed' || b.status === 'in_progress') ||
-          null,
-      )
+      const [wResult, inboxResult, bookingsResult] = await Promise.allSettled([
+        api<Worker>(`/api/workers/${session.workerId}`),
+        api<{ opportunities: Opportunity[] }>('/api/workers/me/opportunities'),
+        api<{ bookings: { id: string; status: string }[] }>(
+          `/api/bookings?workerId=${session.workerId}`,
+        ),
+      ])
+
+      if (wResult.status === 'fulfilled') {
+        setWorker(wResult.value)
+      } else {
+        throw wResult.reason
+      }
+
+      if (inboxResult.status === 'fulfilled') {
+        setOpps(inboxResult.value.opportunities)
+      }
+
+      if (bookingsResult.status === 'fulfilled') {
+        setActiveBooking(
+          bookingsResult.value.bookings.find(
+            (b) => b.status === 'confirmed' || b.status === 'in_progress',
+          ) || null,
+        )
+      }
+
+      setError(null)
     } catch (e) {
-      setError((e as Error).message)
+      setError(friendlyError(e, 'Could not refresh your dashboard. Try again.'))
     }
   }, [session.workerId])
 
@@ -91,12 +109,17 @@ export default function WorkerHomePage() {
 
   const toggle = async () => {
     if (!worker) return
-    const updated = await api<Worker>(`/api/workers/${worker.id}/availability`, {
-      method: 'PATCH',
-      body: JSON.stringify({ onlinePreference: !worker.onlinePreference }),
-    })
-    setWorker({ ...worker, ...updated })
-    if (updated.onlinePreference) geo.requestAndWatch()
+    try {
+      const updated = await api<Worker>(`/api/workers/${worker.id}/availability`, {
+        method: 'PATCH',
+        body: JSON.stringify({ onlinePreference: !worker.onlinePreference }),
+      })
+      setWorker({ ...worker, ...updated })
+      setError(null)
+      if (updated.onlinePreference) geo.requestAndWatch()
+    } catch (e) {
+      setError(friendlyError(e, 'Could not update availability. Try again.'))
+    }
   }
 
   const freshness =
@@ -109,23 +132,27 @@ export default function WorkerHomePage() {
       <div className="screen with-nav">
         <div className="panel-grid">
           <div className="stack">
-            <div className="content-card" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div className="content-card worker-identity-card">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
+                className="worker-identity-avatar"
                 src={
                   worker?.photoUrl ||
                   'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=200&h=200&fit=crop&crop=face'
                 }
                 alt=""
-                style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover' }}
               />
-              <div style={{ flex: 1 }}>
-                <div className="kicker" style={{ marginBottom: 2 }}>
-                  Available for jobs
-                </div>
-                <strong style={{ fontSize: 18 }}>{worker?.displayName || 'Worker'}</strong>
+              <div className="worker-identity-text">
+                <span
+                  className={`badge ${worker?.onlinePreference ? 'badge-success' : 'badge-warning'}`}
+                >
+                  {worker?.onlinePreference ? 'Available for jobs' : 'Away'}
+                </span>
+                <strong className="worker-identity-name">
+                  {worker?.displayName || 'Worker'}
+                </strong>
               </div>
-              <button type="button" className="back-btn" aria-label="Alerts" onClick={load}>
+              <button type="button" className="back-btn" aria-label="Refresh alerts" onClick={() => void load()}>
                 <Bell size={18} />
               </button>
             </div>
@@ -297,7 +324,17 @@ export default function WorkerHomePage() {
             </div>
             {error && (
               <p className="status-note error" role="alert">
-                {error}
+                {error}{' '}
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => {
+                    setError(null)
+                    void load()
+                  }}
+                >
+                  Retry
+                </button>
               </p>
             )}
           </div>

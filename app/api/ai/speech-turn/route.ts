@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as {
     audioBase64?: string
     mimeType?: string
-    mode?: 'customer' | 'worker'
+    mode?: 'customer' | 'worker' | 'customerProfile'
   } | null
 
   if (!body?.audioBase64) {
@@ -19,7 +19,9 @@ export async function POST(req: Request) {
   const hint =
     body.mode === 'worker'
       ? 'Transcribe worker onboarding speech (Roman Urdu/Urdu/English). Return JSON {"transcript":"...","reply":"short confirmation asking only for missing name/trade/experience/area/charge"}.'
-      : 'Transcribe customer home-service request speech (Roman Urdu/Urdu/English). Return JSON {"transcript":"...","reply":"short confirmation of trade, area, and issue"}.'
+      : body.mode === 'customerProfile'
+        ? 'Transcribe customer signup speech (Roman Urdu/Urdu/English). Return JSON {"transcript":"...","reply":"short confirmation asking only for missing name or Islamabad area"}.'
+        : 'Transcribe customer home-service request speech (Roman Urdu/Urdu/English). Return JSON {"transcript":"...","reply":"short confirmation of trade, area, and issue"}.'
 
   const result = await geminiTranscribeAudio({
     base64: body.audioBase64,

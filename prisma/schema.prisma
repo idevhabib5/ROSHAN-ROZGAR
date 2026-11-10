@@ -15,6 +15,10 @@ model AuthUser {
   image         String?
   passwordHash  String?
   provider      String   @default("credentials")
+  /** worker | customer — chosen after first sign-in */
+  preferredRole String?
+  workerId      String?  @unique
+  customerId    String?  @unique
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
@@ -122,16 +126,22 @@ model Quote {
 }
 
 model Booking {
-  id              String   @id @default(cuid())
-  requestId       String   @unique
-  workerId        String
-  customerId      String
-  acceptedQuoteId String
-  agreedAmountPkr Int
-  scheduledTime   String
-  status          String   @default("confirmed")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                      String    @id @default(cuid())
+  requestId               String    @unique
+  workerId                String
+  customerId              String
+  acceptedQuoteId         String
+  agreedAmountPkr         Int
+  scheduledTime           String
+  status                  String    @default("confirmed")
+  /** unpaid | pending | paid | failed | cash */
+  paymentStatus           String    @default("unpaid")
+  paymentMethod           String?
+  stripeCheckoutSessionId String?
+  stripePaymentIntentId   String?
+  paidAt                  DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
   request       ServiceRequest @relation(fields: [requestId], references: [id])
   worker        Worker         @relation(fields: [workerId], references: [id])

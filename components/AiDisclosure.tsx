@@ -23,12 +23,12 @@ export function AiDisclosure({
 
   const label =
     provider === 'gemini'
-      ? 'AI: Gemini (speech + field extraction). If AI fails, type or use sample text.'
+      ? 'Roshan Assistant (speech + field extraction). If voice fails, type or use sample text.'
       : provider === 'openai'
-        ? 'AI: OpenAI extraction. If AI fails, type or use sample text.'
+        ? 'Roshan Assistant via OpenAI extraction. If AI fails, type or use sample text.'
         : provider === 'heuristic'
-          ? 'AI offline: using local keyword parsing. Add GEMINI_API_KEY for full AI.'
-          : 'Checking AI status…'
+          ? 'Roshan Assistant offline: using local keyword parsing. Add GEMINI_API_KEY for full voice.'
+          : 'Checking Roshan Assistant status…'
 
   if (mode === 'banner') {
     return (

@@ -203,7 +203,9 @@ export default function WorkerConfirmPage() {
             className="btn btn-primary"
             disabled={!canConfirm || saving}
             onClick={confirm}
-            title={!canConfirm ? 'Fill all required profile fields first' : undefined}
+            aria-label={
+              !canConfirm ? 'Confirm profile — fill all required fields first' : 'Confirm profile'
+            }
           >
             {saving ? 'Saving…' : 'Confirm profile'}
           </button>

@@ -247,7 +247,7 @@ export default function ChatPage() {
             <div className="card-green">
               <strong>Agreed: Rs. {latestQuote.amountPkr}</strong>
               <p className="muted" style={{ marginTop: 4, marginBottom: 0 }}>
-                Next: confirm booking (cash on completion).
+                Next: confirm booking, then pay with Stripe.
               </p>
             </div>
           )}

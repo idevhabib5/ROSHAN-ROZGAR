@@ -26,6 +26,14 @@ export type ServiceRequestExtract = {
   provider: AiProvider
 }
 
+export type CustomerProfileExtract = {
+  name: string | null
+  serviceArea: string | null
+  missingFields: string[]
+  provider: AiProvider
+  confidence: 'high' | 'medium' | 'low'
+}
+
 function detectTrade(text: string): Trade | null {
   const t = text.toLowerCase()
   if (/plumb|pipe|leak|nalki|پلمب/.test(t)) return 'Plumber'
@@ -96,6 +104,7 @@ async function openaiJson<T>(system: string, user: string): Promise<T | null> {
 }
 
 async function llmJson<T>(system: string, user: string): Promise<{ data: T; provider: 'gemini' | 'openai' } | null> {
+  // Prefer fast local parse path when Gemini is slow/unavailable (common 503/timeout).
   const gemini = await geminiJson<T>(system, user)
   if (gemini) return { data: gemini, provider: 'gemini' }
   const openai = await openaiJson<T>(system, user)
@@ -103,8 +112,21 @@ async function llmJson<T>(system: string, user: string): Promise<{ data: T; prov
   return null
 }
 
+function heuristicWorker(cleaned: string) {
+  const name = extractName(cleaned)
+  const trade = detectTrade(cleaned)
+  const experienceYears = extractYears(cleaned)
+  const serviceArea = /G-\d+|F-\d+|I-\d+|Blue Area|Islamabad|Rawalpindi/i.test(cleaned)
+    ? resolveArea(cleaned).label
+    : null
+  const visitChargePkr = extractCharge(cleaned)
+  return { name, trade, experienceYears, serviceArea, visitChargePkr }
+}
+
 export async function extractWorkerProfile(transcript: string): Promise<WorkerProfileExtract> {
   const cleaned = transcript.trim()
+  // Always compute heuristic first so UI never waits on a hung Gemini call.
+  const fast = heuristicWorker(cleaned)
   const llm = await llmJson<{
     name?: string | null
     trade?: string | null
@@ -116,33 +138,22 @@ export async function extractWorkerProfile(transcript: string): Promise<WorkerPr
     cleaned,
   )
 
-  let name = llm?.data.name ?? null
-  let trade = (llm?.data.trade as Trade | undefined) ?? null
-  let experienceYears = llm?.data.experience_years ?? null
-  let serviceArea = llm?.data.service_area ?? null
-  let visitChargePkr = llm?.data.visit_charge_pkr ?? null
+  let name = llm?.data.name ?? fast.name
+  let trade = (llm?.data.trade as Trade | undefined) ?? fast.trade
+  let experienceYears = llm?.data.experience_years ?? fast.experienceYears
+  let serviceArea = llm?.data.service_area ?? fast.serviceArea
+  let visitChargePkr = llm?.data.visit_charge_pkr ?? fast.visitChargePkr
   const provider: AiProvider = llm?.provider ?? 'heuristic'
 
-  if (!llm) {
-    name = extractName(cleaned)
-    trade = detectTrade(cleaned)
-    experienceYears = extractYears(cleaned)
-    const area = /G-1[01]|F-1[01]|I-8|Islamabad|Rawalpindi/i.test(cleaned)
-      ? resolveArea(cleaned).label
-      : null
-    serviceArea = area
-    visitChargePkr = extractCharge(cleaned)
-  } else {
-    if (trade && !TRADES.includes(trade as Trade)) trade = detectTrade(String(trade)) || detectTrade(cleaned)
-    if (!name) name = extractName(cleaned)
-    if (experienceYears == null) experienceYears = extractYears(cleaned)
-    if (!serviceArea) {
-      serviceArea = /G-1[01]|F-1[01]|I-8|Islamabad/i.test(cleaned)
-        ? resolveArea(cleaned).label
-        : null
-    }
-    if (visitChargePkr == null) visitChargePkr = extractCharge(cleaned)
+  if (trade && !TRADES.includes(trade as Trade)) trade = detectTrade(String(trade)) || detectTrade(cleaned)
+  if (!name) name = extractName(cleaned)
+  if (experienceYears == null) experienceYears = extractYears(cleaned)
+  if (!serviceArea && /G-\d+|F-\d+|I-\d+|Blue Area|Islamabad/i.test(cleaned)) {
+    serviceArea = resolveArea(cleaned).label
+  } else if (serviceArea) {
+    serviceArea = resolveArea(serviceArea).label
   }
+  if (visitChargePkr == null) visitChargePkr = extractCharge(cleaned)
 
   if (trade && !TRADES.includes(trade)) trade = null
 
@@ -160,6 +171,44 @@ export async function extractWorkerProfile(transcript: string): Promise<WorkerPr
     missingFields,
     provider,
     confidence: missingFields.length === 0 ? 'high' : missingFields.length <= 2 ? 'medium' : 'low',
+  }
+}
+
+export async function extractCustomerProfile(transcript: string): Promise<CustomerProfileExtract> {
+  const cleaned = transcript.trim()
+  const llm = await llmJson<{
+    name?: string | null
+    service_area?: string | null
+  }>(
+    'Extract customer profile from Roman Urdu/Urdu/English. Return JSON keys: name, service_area (Islamabad sector like F-10, G-11). Use null for unknown. Never invent.',
+    cleaned,
+  )
+
+  let name = llm?.data.name ?? null
+  let serviceArea = llm?.data.service_area ?? null
+  const provider: AiProvider = llm?.provider ?? 'heuristic'
+
+  if (!llm) {
+    name = extractName(cleaned)
+    serviceArea = /G-\d+|F-\d+|I-\d+|Blue Area|Islamabad|Rawalpindi/i.test(cleaned)
+      ? resolveArea(cleaned).label
+      : null
+  } else {
+    if (!name) name = extractName(cleaned)
+    if (!serviceArea && /G-\d+|F-\d+|I-\d+|Blue Area|Islamabad/i.test(cleaned)) {
+      serviceArea = resolveArea(cleaned).label
+    } else if (serviceArea) {
+      serviceArea = resolveArea(serviceArea).label
+    }
+  }
+
+  const result = { name, serviceArea }
+  const missingFields = missingOf(result, ['name', 'serviceArea'])
+  return {
+    ...result,
+    missingFields,
+    provider,
+    confidence: missingFields.length === 0 ? 'high' : 'medium',
   }
 }
 

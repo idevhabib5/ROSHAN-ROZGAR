@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, MapPin, Star } from 'lucide-react'
 import { BottomNav } from '@/components/BottomNav'
 import { useSession } from '@/components/SessionProvider'
 import { api } from '@/lib/client'
-import { AREAS } from '@/lib/geo'
+import { AREAS, TRADES } from '@/lib/geo'
+import { friendlyError } from '@/lib/ui/errors'
 
 type WorkerCard = {
   id: string
@@ -18,6 +19,7 @@ type WorkerCard = {
   reviewCount: number
   bookable: boolean
   visitChargePkr: number
+  verificationStatus?: string
 }
 
 const FILTERS = ['Nearest', 'Available Now', 'Highest Rated'] as const
@@ -28,39 +30,52 @@ export default function NearbyWorkersPage() {
   const [workers, setWorkers] = useState<WorkerCard[]>([])
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('Available Now')
   const [error, setError] = useState<string | null>(null)
-  const [trade, setTrade] = useState('Plumber')
+  const [trade, setTrade] = useState<(typeof TRADES)[number]>('Plumber')
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const run = async () => {
-      setLoading(true)
-      let t = 'Plumber'
-      let lat = AREAS['G-11'].latitude
-      let lng = AREAS['G-11'].longitude
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      let lat = AREAS['F-10'].latitude
+      let lng = AREAS['F-10'].longitude
+      let nextTrade = trade
+
       if (session.requestId) {
         const req = await api<{ trade: string; latitude: number; longitude: number }>(
           `/api/service-requests/${session.requestId}`,
         )
-        t = req.trade
+        if (TRADES.includes(req.trade as (typeof TRADES)[number])) {
+          nextTrade = req.trade as (typeof TRADES)[number]
+          setTrade(nextTrade)
+        }
         lat = req.latitude
         lng = req.longitude
-        setTrade(t)
       }
+
       const data = await api<{ workers: WorkerCard[] }>(
-        `/api/workers?trade=${encodeURIComponent(t)}&lat=${lat}&lng=${lng}&radiusKm=8`,
+        `/api/workers?trade=${encodeURIComponent(nextTrade)}&lat=${lat}&lng=${lng}&radiusKm=12&includeOffline=1`,
       )
       setWorkers(data.workers)
+    } catch (e) {
+      setError(friendlyError(e, 'Could not load workers. Try again.'))
+    } finally {
+      setLoading(false)
     }
-    run()
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false))
-  }, [session.requestId])
+  }, [session.requestId, trade])
+
+  useEffect(() => {
+    void load()
+  }, [load])
 
   const sorted = [...workers].sort((a, b) => {
     if (filter === 'Nearest') return a.distanceKm - b.distanceKm
     if (filter === 'Highest Rated') return (b.rating ?? 0) - (a.rating ?? 0)
     return Number(b.bookable) - Number(a.bookable)
   })
+
+  const visible =
+    filter === 'Available Now' ? sorted.filter((w) => w.bookable) : sorted
 
   return (
     <>
@@ -77,8 +92,21 @@ export default function NearbyWorkersPage() {
           <h2>Nearby workers</h2>
         </div>
         <p className="section-sub">
-          {trade} · only bookable workers (server-computed availability)
+          Browse sample worker profiles by trade. Bookable workers can take jobs now.
         </p>
+
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+          {TRADES.map((t) => (
+            <button
+              key={t}
+              type="button"
+              className={`chip${trade === t ? ' active' : ''}`}
+              onClick={() => setTrade(t)}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
 
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
           {FILTERS.map((f) => (
@@ -95,17 +123,21 @@ export default function NearbyWorkersPage() {
 
         {loading && <div className="loading-state">Finding nearby workers…</div>}
         {error && (
-          <p style={{ fontSize: 12, color: 'var(--danger)', marginBottom: 8 }}>{error}</p>
+          <p className="status-note error" role="alert">
+            {error}{' '}
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => void load()}>
+              Retry
+            </button>
+          </p>
         )}
-        {!loading && !error && sorted.length === 0 && (
+        {!loading && !error && visible.length === 0 && (
           <div className="empty-state">
-            Is radius mein koi bookable worker nahi. Radius expand karke dubara try karein, ya
-            worker availability ON karein.
+            Is trade / filter mein koi worker nahi. Doosra trade try karein.
           </div>
         )}
 
         <div className="workers-grid">
-          {sorted.map((w) => (
+          {visible.map((w) => (
             <button
               key={w.id}
               type="button"
@@ -117,10 +149,7 @@ export default function NearbyWorkersPage() {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={
-                  w.photoUrl ||
-                  'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=200&h=200&fit=crop&crop=face'
-                }
+                src={w.photoUrl || portraitFallback}
                 alt=""
                 className="avatar"
                 style={{ width: 56, height: 56 }}
@@ -128,7 +157,9 @@ export default function NearbyWorkersPage() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                   <strong>{w.displayName}</strong>
-                  <span className="badge badge-success">Available</span>
+                  <span className={`badge ${w.bookable ? 'badge-success' : 'badge-warning'}`}>
+                    {w.bookable ? 'Available' : 'Away'}
+                  </span>
                 </div>
                 <div className="muted">{w.trade}</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
@@ -142,7 +173,7 @@ export default function NearbyWorkersPage() {
                 </div>
                 <div style={{ marginTop: 12 }}>
                   <span className="btn btn-primary btn-sm" style={{ pointerEvents: 'none' }}>
-                    Book Now · from Rs. {w.visitChargePkr}
+                    View profile · from Rs. {w.visitChargePkr}
                   </span>
                 </div>
               </div>
@@ -154,3 +185,5 @@ export default function NearbyWorkersPage() {
     </>
   )
 }
+
+const portraitFallback = 'https://randomuser.me/api/portraits/men/1.jpg'

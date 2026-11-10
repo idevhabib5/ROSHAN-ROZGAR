@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/client'
+import { friendlyError } from '@/lib/ui/errors'
 
 type Opts = {
   workerId: string
@@ -43,12 +44,16 @@ export function useGeolocation({ workerId, enabled, throttleMs = 15000 }: Opts) 
         setPermission('granted')
         setError(null)
         send(pos.coords.latitude, pos.coords.longitude).catch((e) =>
-          setError((e as Error).message),
+          setError(friendlyError(e, 'Could not update location.')),
         )
       },
       (err) => {
         setPermission('denied')
-        setError(err.message)
+        setError(
+          err.code === 1
+            ? 'Location permission denied. Enable location while available.'
+            : friendlyError(err.message, 'Could not read GPS location.'),
+        )
       },
       { enableHighAccuracy: false, maximumAge: 30000, timeout: 10000 },
     )
@@ -66,12 +71,16 @@ export function useGeolocation({ workerId, enabled, throttleMs = 15000 }: Opts) 
       (pos) => {
         setPermission('granted')
         send(pos.coords.latitude, pos.coords.longitude).catch((e) =>
-          setError((e as Error).message),
+          setError(friendlyError(e, 'Could not update location.')),
         )
       },
       (err) => {
         setPermission('denied')
-        setError(err.message)
+        setError(
+          err.code === 1
+            ? 'Location permission denied. Enable location while available.'
+            : friendlyError(err.message, 'Could not read GPS location.'),
+        )
       },
       { enableHighAccuracy: false, maximumAge: 20000, timeout: 15000 },
     )

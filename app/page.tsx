@@ -1,19 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useSession as useAuthSession } from 'next-auth/react'
-import {
-  ChevronRight,
-  HardHat,
-  Home,
-  MapPin,
-  Mic2,
-  ShieldCheck,
-  Sparkles,
-} from 'lucide-react'
+import { MapPin, Mic2, ShieldCheck, Sparkles } from 'lucide-react'
 import { useSession } from '@/components/SessionProvider'
-import { DEMO_IDS } from '@/lib/session'
 
 type Lang = 'roman' | 'urdu' | 'en'
 
@@ -24,82 +16,113 @@ const COPY: Record<
     title: string
     lead: string
     features: [string, string, string]
-    workerTitle: string
-    workerDesc: string
-    customerTitle: string
-    customerDesc: string
     voiceHint: string
     demoNote: string
     heroTitle: string
     heroSub: string
     heroPill: string
+    ctaSignup: string
+    ctaLogin: string
   }
 > = {
   roman: {
     kicker: 'Roshan Rozgar',
     title: 'Good work. Brighter tomorrows.',
-    lead: 'Assalam-o-Alaikum. Ghar ke kaam ke liye bharosemand hunarmand. Voice se shuru karein, qareeb workers dhoondhein, qeemat clear rakhein, booking confirm karein.',
+    lead: 'Assalam-o-Alaikum. Ghar ke kaam ke liye bharosemand hunarmand. Account banayein, phir short setup — Roshan Assistant awaz se details lega.',
     features: ['Voice onboarding', 'Nearby workers', 'Clear pricing'],
-    workerTitle: 'Main Hunarmand Hoon',
-    workerDesc: 'Worker. Mic dabayein, apna naam batayein. Typing optional.',
-    customerTitle: 'Mujhe Hunarmand Chahiye',
-    customerDesc: 'Customer. Qareeb worker dhoondhein jo abhi dastiyab ho.',
     voiceHint:
-      'AI awaz se naam, hunar, ilaqa aur masla samajhta hai. Cash on completion, no online payment.',
-    demoNote: 'Demo roles: Ahmed Khan (customer) and Ali Raza (worker).',
+      'Sign up ya log in karein. Setup form mein role chunein — Roshan Assistant baqi awaz se poochega.',
+    demoNote: 'Cash on completion. No online payment.',
     heroTitle: 'Ghar ke Kaam ke Liye',
     heroSub: 'Bharosemand Hunarmand. Qareeb, dastiyab, clear qeemat',
     heroPill: 'Voice-first · Islamabad',
+    ctaSignup: 'Sign up',
+    ctaLogin: 'Log in',
   },
   urdu: {
     kicker: 'روشن روزگار',
     title: 'اچھا کام۔ روشن کل۔',
-    lead: 'السلام علیکم۔ گھر کے کام کے لیے بھروسے مند ہنرمند۔ آواز سے شروع کریں، قریب ورکرز تلاش کریں، قیمت صاف رکھیں، بکنگ کنفرم کریں۔',
+    lead: 'السلام علیکم۔ گھر کے کام کے لیے بھروسے مند ہنرمند۔ اکاؤنٹ بنائیں، پھر مختصر سیٹ اپ — روشن اسسٹنٹ آواز سے تفصیلات لے گا۔',
     features: ['آواز سے شروع کریں', 'قریب ورکرز', 'صاف قیمت'],
-    workerTitle: 'میں ہنرمند ہوں',
-    workerDesc: 'ورکر۔ مائیک دبائیں، اپنا نام بتائیں۔ ٹائپنگ اختیاری۔',
-    customerTitle: 'مجھے ہنرمند چاہیے',
-    customerDesc: 'کسٹمر۔ قریب دستیاب ورکر تلاش کریں۔',
-    voiceHint:
-      'اے آئی آواز سے نام، ہنر، علاقہ اور مسئلہ سمجھتا ہے۔ ادائیگی کام مکمل ہونے پر نقد؛ آن لائن ادائیگی نہیں۔',
-    demoNote: 'ڈیمو رولز: احمد خان (کسٹمر) اور علی رضا (ورکر)۔',
+    voiceHint: 'سائن اَپ یا لاگ اِن کریں۔ سیٹ اپ میں رول چنیں — روشن اسسٹنٹ باقی آواز سے پوچھے گا۔',
+    demoNote: 'ادائیگی کام مکمل ہونے پر نقد۔ آن لائن ادائیگی نہیں۔',
     heroTitle: 'گھر کے کام کے لیے',
     heroSub: 'بھروسے مند ہنرمند۔ قریب، دستیاب، صاف قیمت',
     heroPill: 'آواز سے پہلے · اسلام آباد',
+    ctaSignup: 'سائن اَپ',
+    ctaLogin: 'لاگ اِن',
   },
   en: {
     kicker: 'Roshan Rozgar',
     title: 'Good work. Brighter tomorrows.',
-    lead: 'Assalam-o-Alaikum. Trusted tradespeople for home jobs. Start with your voice, find nearby workers, keep the price clear, and confirm the booking.',
+    lead: 'Assalam-o-Alaikum. Trusted tradespeople for home jobs. Create an account, then a short setup — Roshan Assistant collects your details by voice.',
     features: ['Voice onboarding', 'Nearby workers', 'Clear pricing'],
-    workerTitle: "I'm a skilled worker",
-    workerDesc: 'Worker. Tap the mic, say your name. Typing optional.',
-    customerTitle: 'I need a skilled worker',
-    customerDesc: 'Customer. Find a nearby available worker.',
     voiceHint:
-      'AI understands name, trade, area, and issue from speech. Cash on completion, no online payment.',
-    demoNote: 'Demo roles: Ahmed Khan (customer) and Ali Raza (worker).',
+      'Sign up or log in. Pick your role in a short form — Roshan Assistant asks for the rest by voice.',
+    demoNote: 'Cash on completion. No online payment.',
     heroTitle: 'For household work',
     heroSub: 'Trusted tradespeople. Nearby, available, clear price',
     heroPill: 'Voice-first · Islamabad',
+    ctaSignup: 'Sign up',
+    ctaLogin: 'Log in',
   },
+}
+
+type MeResponse = {
+  preferredRole?: string | null
+  workerId?: string | null
+  customerId?: string | null
 }
 
 export default function WelcomePage() {
   const router = useRouter()
   const { patch } = useSession()
-  const { data: auth } = useAuthSession()
+  const { data: auth, status } = useAuthSession()
   const [lang, setLang] = useState<Lang>('roman')
+  const [checkingProfile, setCheckingProfile] = useState(false)
   const t = COPY[lang]
   const isUrdu = lang === 'urdu'
+  const signedIn = status === 'authenticated' && Boolean(auth?.user)
+
+  useEffect(() => {
+    if (!signedIn) return
+    let cancelled = false
+    setCheckingProfile(true)
+    fetch('/api/me')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((me: MeResponse | null) => {
+        if (cancelled) return
+        if (me?.preferredRole === 'worker' && me.workerId) {
+          patch({ role: 'worker', workerId: me.workerId })
+          router.replace('/worker/home')
+          return
+        }
+        if (me?.preferredRole === 'customer' && me.customerId) {
+          patch({ role: 'customer', customerId: me.customerId })
+          router.replace('/customer/home')
+          return
+        }
+        router.replace('/choose-role')
+      })
+      .catch(() => {
+        if (!cancelled) router.replace('/choose-role')
+      })
+      .finally(() => {
+        if (!cancelled) setCheckingProfile(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [signedIn, patch, router])
 
   return (
     <div className="landing" lang={isUrdu ? 'ur' : 'en'}>
       <div className="landing-grid">
         <section className={`landing-copy${isUrdu ? ' urdu' : ''}`}>
-          {auth?.user && (
+          {signedIn && (
             <p className="kicker" style={{ marginBottom: 12 }}>
-              Signed in as {auth.user.name || auth.user.email}
+              Signed in as {auth?.user?.name || auth?.user?.email}
+              {checkingProfile ? ' · continuing setup…' : ''}
             </p>
           )}
           <div className="lang-toggle" role="group" aria-label="Language" dir="ltr">
@@ -142,50 +165,16 @@ export default function WelcomePage() {
             </div>
           </div>
 
-          <div className="role-stack" style={{ marginTop: 8 }} dir={isUrdu ? 'rtl' : 'ltr'}>
-            <button
-              type="button"
-              className="role-card"
-              onClick={() => {
-                patch({
-                  role: 'worker',
-                  workerId: DEMO_IDS.workerAli,
-                  pendingProfile: null,
-                })
-                router.push('/worker/onboarding')
-              }}
-            >
-              <div className="role-icon">
-                <HardHat size={26} strokeWidth={2.2} />
-              </div>
-              <div>
-                <strong>{t.workerTitle}</strong>
-                <span>{t.workerDesc}</span>
-              </div>
-              <ChevronRight className="chev" size={20} />
-            </button>
-
-            <button
-              type="button"
-              className="role-card"
-              onClick={() => {
-                patch({
-                  role: 'customer',
-                  customerId: DEMO_IDS.customerAhmed,
-                })
-                router.push('/customer/home')
-              }}
-            >
-              <div className="role-icon">
-                <Home size={26} strokeWidth={2.2} />
-              </div>
-              <div>
-                <strong>{t.customerTitle}</strong>
-                <span>{t.customerDesc}</span>
-              </div>
-              <ChevronRight className="chev" size={20} />
-            </button>
-          </div>
+          {!signedIn && (
+            <div className="landing-cta-row" dir={isUrdu ? 'rtl' : 'ltr'}>
+              <Link href="/signup" className="btn btn-primary">
+                {t.ctaSignup}
+              </Link>
+              <Link href="/login" className="btn btn-outline">
+                {t.ctaLogin}
+              </Link>
+            </div>
+          )}
 
           <div className="voice-hint">
             <Mic2 size={18} />
@@ -195,13 +184,22 @@ export default function WelcomePage() {
           <p className="demo-note">{t.demoNote}</p>
         </section>
 
-        <aside className={`landing-hero${isUrdu ? ' urdu' : ''}`} aria-hidden="true">
-          <div className="hero-pill">
-            <ShieldCheck size={14} /> {t.heroPill}
-          </div>
-          <div className="hero-card">
-            <strong>{t.heroTitle}</strong>
-            <span>{t.heroSub}</span>
+        <aside className={`landing-hero${isUrdu ? ' urdu' : ''}`}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            className="landing-hero-photo"
+            src="/landing-hero.jpg"
+            alt="Electrician in a hard hat working on a home electrical panel"
+          />
+          <div className="landing-hero-overlay" aria-hidden="true" />
+          <div className="landing-hero-content">
+            <div className="hero-pill">
+              <ShieldCheck size={14} /> {t.heroPill}
+            </div>
+            <div className="hero-card">
+              <strong>{t.heroTitle}</strong>
+              <span>{t.heroSub}</span>
+            </div>
           </div>
         </aside>
       </div>

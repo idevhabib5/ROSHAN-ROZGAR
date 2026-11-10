@@ -20,12 +20,24 @@ declare global {
   }
 }
 
-export function useSpeech() {
+export function useSpeech(options?: { onSpeechComplete?: (transcript: string) => void }) {
   const [supported, setSupported] = useState(false)
   const [listening, setListening] = useState(false)
   const [transcript, setTranscript] = useState('')
   const [error, setError] = useState<string | null>(null)
   const recRef = useRef<SpeechRecognitionLike | null>(null)
+  const transcriptRef = useRef('')
+  const completedRef = useRef(false)
+  const onCompleteRef = useRef(options?.onSpeechComplete)
+  onCompleteRef.current = options?.onSpeechComplete
+
+  const finishOnce = useCallback(() => {
+    if (completedRef.current) return
+    const text = transcriptRef.current.trim()
+    if (!text) return
+    completedRef.current = true
+    onCompleteRef.current?.(text)
+  }, [])
 
   useEffect(() => {
     const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -35,7 +47,8 @@ export function useSpeech() {
   const stop = useCallback(() => {
     recRef.current?.stop()
     setListening(false)
-  }, [])
+    finishOnce()
+  }, [finishOnce])
 
   const start = useCallback(() => {
     setError(null)
@@ -53,18 +66,25 @@ export function useSpeech() {
       for (let i = 0; i < ev.results.length; i++) {
         parts.push(ev.results[i][0].transcript)
       }
-      setTranscript(parts.join(' ').trim())
+      const text = parts.join(' ').trim()
+      transcriptRef.current = text
+      setTranscript(text)
     }
     rec.onerror = (ev) => {
       setError(ev.error === 'not-allowed' ? 'Microphone permission denied.' : `Speech error: ${ev.error}`)
       setListening(false)
     }
-    rec.onend = () => setListening(false)
+    rec.onend = () => {
+      setListening(false)
+      finishOnce()
+    }
     recRef.current = rec
+    transcriptRef.current = ''
+    completedRef.current = false
     setTranscript('')
     rec.start()
     setListening(true)
-  }, [])
+  }, [finishOnce])
 
   const speak = useCallback((text: string) => {
     if (!window.speechSynthesis) return

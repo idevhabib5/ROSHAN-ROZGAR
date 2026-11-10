@@ -7,6 +7,14 @@ export const DEMO_IDS = {
   workerUsman: 'wrk_usman_ali',
   workerFarhan: 'wrk_farhan_sheikh',
   workerHamza: 'wrk_hamza_iqbal',
+  workerSajid: 'wrk_sajid_mehmood',
+  workerTariq: 'wrk_tariq_javed',
+  workerNaveed: 'wrk_naveed_akhtar',
+  workerKashif: 'wrk_kashif_malik',
+  workerAsad: 'wrk_asad_nawaz',
+  workerRizwan: 'wrk_rizwan_qureshi',
+  workerJunaid: 'wrk_junaid_arif',
+  workerShahid: 'wrk_shahid_anwar',
 } as const
 
 export type DemoRole = 'worker' | 'customer'
