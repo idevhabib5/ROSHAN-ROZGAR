@@ -15,25 +15,33 @@ COMSATS AI Web Forge Hackathon MVP — responsive web marketplace connecting nea
 - **AI:** Web Speech + heuristic/OpenAI extract
 - **Geo:** Haversine + bounding-box prefilter (SQLite — not PostGIS)
 
-## Quick start
+## Quick start (local testing — recommended)
+
+This is the supported way to demo the full inDrive-style flow (API + Socket.IO + dispatch ticker):
 
 ```bash
 npm install
-npx prisma db push
-npm run db:seed
+npm run setup
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open **http://localhost:3000** (or the `Network:` URL printed in the terminal for phone testing on the same Wi‑Fi).
 
-> `npm run dev` runs **`node server.mjs`** (Next + Socket.IO). Use `npm run dev:next` only if you want Next alone (no live sockets; UI still polls).
+> `npm run dev` / `npm run start` run **`server.mjs`** — Next.js + Socket.IO + dispatch ticker in one process.  
+> Do **not** use plain `next start` for realtime demos.
 
-Windows production-like start:
+Copy [`.env.example`](.env.example) → `.env` if you want to tweak ports/dispatch settings.
+
+Windows production-like start (still local Node, not Vercel Socket.IO):
 
 ```bash
 npm run build
 npm run start:win
 ```
+
+### Vercel note
+
+[`vercel.json`](vercel.json) is for Next.js hosting. Vercel does **not** run `server.mjs`. For hackathon testing, keep using local `npm run dev`. UI polling still works without sockets; live alerts need `server.mjs`.
 
 ## Dispatch demo script (inDrive-style)
 

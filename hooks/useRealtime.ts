@@ -4,6 +4,14 @@ import { useEffect, useRef, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { useSession } from '@/components/SessionProvider'
 
+/** Same-origin by default (local server.mjs). Override with NEXT_PUBLIC_SOCKET_URL if needed. */
+function socketUrl() {
+  const fromEnv = process.env.NEXT_PUBLIC_SOCKET_URL?.trim()
+  if (fromEnv) return fromEnv
+  if (typeof window !== 'undefined') return window.location.origin
+  return undefined
+}
+
 export function useRealtime(onEvent?: (event: string, payload: unknown) => void) {
   const { session, ready } = useSession()
   const [connected, setConnected] = useState(false)
@@ -14,7 +22,8 @@ export function useRealtime(onEvent?: (event: string, payload: unknown) => void)
   useEffect(() => {
     if (!ready || !session.role) return
 
-    const socket = io({
+    const url = socketUrl()
+    const socket = io(url, {
       path: '/api/socketio',
       auth: {
         role: session.role,
@@ -22,6 +31,9 @@ export function useRealtime(onEvent?: (event: string, payload: unknown) => void)
         customerId: session.customerId,
       },
       transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
     })
     socketRef.current = socket
 
@@ -57,7 +69,7 @@ export function useRealtime(onEvent?: (event: string, payload: unknown) => void)
   return { connected, socket: socketRef.current }
 }
 
-/** Polling fallback when socket is down */
+/** Polling fallback when socket is down — keeps local demo working even if WS drops */
 export function usePolling(fetcher: () => void | Promise<void>, intervalMs = 2500, enabled = true) {
   useEffect(() => {
     if (!enabled) return

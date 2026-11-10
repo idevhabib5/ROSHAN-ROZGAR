@@ -4,10 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "node server.mjs",
+    "dev:local": "node server.mjs",
     "dev:next": "next dev",
     "build": "prisma generate && next build",
     "start": "node server.mjs",
     "start:win": "set NODE_ENV=production&& node server.mjs",
+    "setup": "npx prisma db push && npm run db:seed",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",

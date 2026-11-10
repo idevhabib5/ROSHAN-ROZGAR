@@ -1,13 +1,16 @@
 import { createServer } from 'node:http'
+import { networkInterfaces } from 'node:os'
 import { parse } from 'node:url'
 import next from 'next'
 import { Server } from 'socket.io'
 
 const dev = process.env.NODE_ENV !== 'production'
-const hostname = process.env.HOSTNAME || 'localhost'
 const port = Number(process.env.PORT || 3000)
+/** Bind all interfaces so phone/LAN testing works; ticker still hits loopback */
+const bindHost = process.env.HOST || '0.0.0.0'
+const nextHostname = process.env.HOSTNAME || 'localhost'
 
-const app = next({ dev, hostname, port })
+const app = next({ dev, hostname: nextHostname, port })
 const handle = app.getRequestHandler()
 
 await app.prepare()
@@ -54,7 +57,6 @@ io.on('connection', (socket) => {
   }
 
   socket.on('worker:availability_update', () => {
-    // Mutations go through REST; acknowledge only
     socket.emit('ack', { event: 'worker:availability_update' })
   })
   socket.on('worker:location_update', () => {
@@ -72,14 +74,22 @@ function routeEvent(event, payload) {
   if (p.customerId) io.to(`customer:${p.customerId}`).emit(event, payload)
 }
 
-// Wire dispatch bus from compiled TS via dynamic import of Next server modules is hard.
-// Instead expose a global emit used by API via HTTP internal hook + poll ticker below.
 globalThis.__rr_emit = routeEvent
+
+function lanAddresses() {
+  const nets = networkInterfaces()
+  const out = []
+  for (const entries of Object.values(nets)) {
+    for (const net of entries || []) {
+      if (net.family === 'IPv4' && !net.internal) out.push(net.address)
+    }
+  }
+  return out
+}
 
 async function runTicker() {
   try {
-    // Call internal tick API so Prisma/TS libs stay in Next runtime
-    await fetch(`http://${hostname}:${port}/api/dispatch/tick`, {
+    await fetch(`http://127.0.0.1:${port}/api/dispatch/tick`, {
       method: 'POST',
       headers: { 'x-dispatch-tick-secret': process.env.DISPATCH_TICK_SECRET || 'local-dev-tick' },
     })
@@ -96,6 +106,12 @@ httpServer
     console.error(err)
     process.exit(1)
   })
-  .listen(port, () => {
-    console.log(`> Roshan Rozgar ready on http://${hostname}:${port} (Socket.IO /api/socketio)`)
+  .listen(port, bindHost, () => {
+    console.log(`> Roshan Rozgar (local test) ready`)
+    console.log(`> Local:    http://localhost:${port}`)
+    for (const ip of lanAddresses()) {
+      console.log(`> Network:  http://${ip}:${port}`)
+    }
+    console.log(`> Socket.IO path: /api/socketio`)
+    console.log(`> Dispatch ticker: every ${tickMs}ms`)
   })
